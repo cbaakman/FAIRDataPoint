@@ -1,3 +1,25 @@
+/**
+ * The MIT License
+ * Copyright © 2017 DTL
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package nl.dtls.fairdatapoint.service.schema;
 
 import io.swagger.v3.oas.models.tags.Tag;
@@ -9,7 +31,6 @@ import nl.dtls.fairdatapoint.database.mongo.repository.MetadataSchemaRepository;
 import nl.dtls.fairdatapoint.entity.exception.ResourceNotFoundException;
 import nl.dtls.fairdatapoint.entity.schema.MetadataSchema;
 import nl.dtls.fairdatapoint.entity.schema.MetadataSchemaChild;
-import nl.dtls.fairdatapoint.service.openapi.OpenApiGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -32,7 +53,9 @@ public class MetadataSchemaService {
     public List<MetadataSchemaBundleDTO> getAllBundles() {
         List<MetadataSchema> schemas = metadataSchemaRepository.findAll();
         Map<String, List<MetadataSchema>> schemaBundles = schemas.stream().collect(Collectors.groupingBy(MetadataSchema::getUuid));
-        return schemaBundles.values().stream().map(b -> metadataSchemaMapper.toBundleDTO(b)).collect(Collectors.toList());
+        return schemaBundles.values().stream().map(b ->
+                metadataSchemaMapper.toBundleDTO(b.stream().sorted(SEMVER_COMPARATOR.reversed()).collect(Collectors.toList()))
+        ).collect(Collectors.toList());
     }
 
     public Optional<MetadataSchemaBundleDTO> getBundle(String uuid) {
