@@ -40,10 +40,10 @@ import java.util.List;
 public class MetadataSchemaChildDTO {
 
     @NotBlank
-    private String schemaUuid;
+    private String uuid;
 
     @NotBlank
-    private String schemaVersion;
+    private String version;
 
     @NotBlank
     @ValidIri

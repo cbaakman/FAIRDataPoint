@@ -68,7 +68,7 @@ public class MetadataSchemaService {
     }
 
     public Optional<MetadataSchemaDetailDTO> getDraft(String uuid) {
-        Optional<MetadataSchema> existingDraft = metadataSchemaRepository.findByUuidAndVersion(uuid, null);
+        Optional<MetadataSchema> existingDraft = metadataSchemaRepository.findByUuidAndVersionString(uuid, null);
         if (existingDraft.isPresent()) {
             return existingDraft.map(s -> metadataSchemaMapper.toDetailDTO(s));
         }
@@ -81,7 +81,7 @@ public class MetadataSchemaService {
     }
 
     public Optional<MetadataSchemaDetailDTO> getDetail(String uuid, String version) {
-        return metadataSchemaRepository.findByUuidAndVersion(uuid, version).map(s -> metadataSchemaMapper.toDetailDTO(s));
+        return metadataSchemaRepository.findByUuidAndVersionString(uuid, version).map(s -> metadataSchemaMapper.toDetailDTO(s));
     }
 
     public MetadataSchemaDetailDTO createDraft(MetadataSchemaChangeDTO dto) {
@@ -96,7 +96,7 @@ public class MetadataSchemaService {
 
     public Optional<MetadataSchemaDetailDTO> updateDraft(String uuid, MetadataSchemaChangeDTO dto) {
         // TODO: validate
-        Optional<MetadataSchema> oDraft = metadataSchemaRepository.findByUuidAndVersion(uuid, null);
+        Optional<MetadataSchema> oDraft = metadataSchemaRepository.findByUuidAndVersionString(uuid, null);
         return oDraft.map(draft -> {
             Optional<MetadataSchema> previousVersion = getMostRecentVersion(uuid);
             List<MetadataSchema> extendsSchemas = extractExtendsSchemas(dto);
@@ -109,7 +109,7 @@ public class MetadataSchemaService {
 
     private List<MetadataSchema> extractExtendsSchemas(MetadataSchemaChangeDTO dto) {
         return dto.getExtendsSchemas().stream().map(coords -> {
-            var schema = metadataSchemaRepository.findByUuidAndVersion(coords.getUuid(), coords.getVersion());
+            var schema = metadataSchemaRepository.findByUuidAndVersionString(coords.getUuid(), coords.getVersion());
             if (schema.isEmpty()) {
                 throw new ResourceNotFoundException(format("Metadata Schema '%s' with version '%s' not found", coords.getUuid(), coords.getVersion()));
             }
@@ -119,16 +119,16 @@ public class MetadataSchemaService {
 
     private List<MetadataSchemaChild> extractChildren(MetadataSchemaChangeDTO dto) {
         return dto.getChildren().stream().map(child -> {
-            var schema = metadataSchemaRepository.findByUuidAndVersion(child.getSchemaUuid(), child.getSchemaVersion());
+            var schema = metadataSchemaRepository.findByUuidAndVersionString(child.getUuid(), child.getVersion());
             if (schema.isEmpty()) {
-                throw new ResourceNotFoundException(format("Metadata Schema '%s' with version '%s' not found", child.getSchemaUuid(), child.getSchemaVersion()));
+                throw new ResourceNotFoundException(format("Metadata Schema '%s' with version '%s' not found", child.getUuid(), child.getVersion()));
             }
             return metadataSchemaMapper.fromChildDTO(child, schema.get());
         }).collect(Collectors.toList());
     }
 
     public Optional<MetadataSchemaDetailDTO> publishDraft(String uuid, MetadataSchemaPublishDTO dto) {
-        Optional<MetadataSchema> oDraft = metadataSchemaRepository.findByUuidAndVersion(uuid, null);
+        Optional<MetadataSchema> oDraft = metadataSchemaRepository.findByUuidAndVersionString(uuid, null);
         return oDraft.map(draft -> {
             MetadataSchema schema = metadataSchemaMapper.fromPublishDTO(draft, dto);
             metadataSchemaRepository.save(schema);
@@ -137,7 +137,7 @@ public class MetadataSchemaService {
     }
 
     public boolean deleteDraft(String uuid) {
-        Optional<MetadataSchema> schema = metadataSchemaRepository.findByUuidAndVersion(uuid, null);
+        Optional<MetadataSchema> schema = metadataSchemaRepository.findByUuidAndVersionString(uuid, null);
         schema.ifPresent(s -> metadataSchemaRepository.delete(s));
         return schema.isPresent();
     }

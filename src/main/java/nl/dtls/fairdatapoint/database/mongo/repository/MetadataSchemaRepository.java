@@ -32,7 +32,7 @@ public interface MetadataSchemaRepository extends MongoRepository<MetadataSchema
 
     List<MetadataSchema> findByUuid(String uuid);
 
-    Optional<MetadataSchema> findByUuidAndVersion(String uuid, String version);
+    Optional<MetadataSchema> findByUuidAndVersionString(String uuid, String version);
 
     List<MetadataSchema> findByUrlPrefix(String urlPrefix);
 }
