@@ -41,6 +41,9 @@ import java.util.List;
 public class MetadataSchemaBundleVersionDTO {
 
     @NotBlank
+    private String uuid;
+
+    @NotBlank
     @JsonInclude(JsonInclude.Include.ALWAYS)
     private String version;
 

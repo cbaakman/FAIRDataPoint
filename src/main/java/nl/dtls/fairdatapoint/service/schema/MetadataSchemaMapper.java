@@ -43,6 +43,7 @@ public class MetadataSchemaMapper {
 
     private MetadataSchemaBundleVersionDTO toVersionDTO(MetadataSchema schema) {
         return new MetadataSchemaBundleVersionDTO(
+                schema.getUuid(),
                 schema.getVersionString(),
                 schema.getName(),
                 schema.getAbstractSchema(),
