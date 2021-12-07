@@ -46,6 +46,7 @@ public class MetadataSchemaMapper {
                 schema.getVersionString(),
                 schema.getName(),
                 schema.getAbstractSchema(),
+                schema.getUrlPrefix(),
                 schema.getExtendsSchemas().stream().map(this::toCoordsDTO).collect(Collectors.toList()),
                 schema.getChildren().stream().map(child -> new MetadataSchemaCoordsDTO(child.getChildSchema().getUuid(), child.getChildSchema().getVersionString())).collect(Collectors.toList())
         );

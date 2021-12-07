@@ -50,6 +50,9 @@ public class MetadataSchemaBundleVersionDTO {
     @NotNull
     @JsonProperty("abstract")
     private Boolean abstractSchema;
+
+    @NotNull
+    private String urlPrefix;
     
     @Valid
     @NotNull
