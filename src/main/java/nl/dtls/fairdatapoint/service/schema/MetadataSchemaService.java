@@ -29,9 +29,11 @@ import nl.dtls.fairdatapoint.api.dto.schema.MetadataSchemaDetailDTO;
 import nl.dtls.fairdatapoint.api.dto.schema.MetadataSchemaPublishDTO;
 import nl.dtls.fairdatapoint.database.mongo.repository.MetadataSchemaRepository;
 import nl.dtls.fairdatapoint.entity.exception.ResourceNotFoundException;
+import nl.dtls.fairdatapoint.entity.metadata.Metadata;
 import nl.dtls.fairdatapoint.entity.schema.MetadataSchema;
 import nl.dtls.fairdatapoint.entity.schema.MetadataSchemaChild;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.query.Meta;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -96,12 +98,22 @@ public class MetadataSchemaService {
 
     public Optional<MetadataSchemaDetailDTO> updateDraft(String uuid, MetadataSchemaChangeDTO dto) {
         // TODO: validate
+        // TODO: improve work with two optionals
+        Optional<MetadataSchema> oPreviousVersion = getMostRecentVersion(uuid);
         Optional<MetadataSchema> oDraft = metadataSchemaRepository.findByUuidAndVersionString(uuid, null);
-        return oDraft.map(draft -> {
-            Optional<MetadataSchema> previousVersion = getMostRecentVersion(uuid);
+        if (oDraft.isPresent()) {
+            MetadataSchema draft = oDraft.get();
             List<MetadataSchema> extendsSchemas = extractExtendsSchemas(dto);
             List<MetadataSchemaChild> children = extractChildren(dto);
-            MetadataSchema schema = metadataSchemaMapper.fromChangeDTO(draft, dto, previousVersion, extendsSchemas, children);
+            MetadataSchema schema = metadataSchemaMapper.fromChangeDTO(draft, dto, Optional.ofNullable(draft.getPreviousVersion()), extendsSchemas, children);
+            metadataSchemaRepository.save(schema);
+            return Optional.of(metadataSchemaMapper.toDetailDTO(schema));
+        }
+        return oPreviousVersion.map(previousVersion -> {
+            MetadataSchema draft = metadataSchemaRepository.save(metadataSchemaMapper.toDraft(previousVersion));
+            List<MetadataSchema> extendsSchemas = extractExtendsSchemas(dto);
+            List<MetadataSchemaChild> children = extractChildren(dto);
+            MetadataSchema schema = metadataSchemaMapper.fromChangeDTO(draft, dto, oPreviousVersion, extendsSchemas, children);
             metadataSchemaRepository.save(schema);
             return metadataSchemaMapper.toDetailDTO(schema);
         });

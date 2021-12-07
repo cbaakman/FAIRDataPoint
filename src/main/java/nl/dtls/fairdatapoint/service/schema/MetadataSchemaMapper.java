@@ -163,4 +163,21 @@ public class MetadataSchemaMapper {
                 dto.getMetadata().stream().map(mm -> new MetadataSchemaChildMetadata(mm.getTitle(), mm.getPropertyUri())).collect(Collectors.toList())
         );
     }
+
+    public MetadataSchema toDraft(MetadataSchema previousVersion) {
+        return MetadataSchema.builder()
+                .uuid(previousVersion.getUuid())
+                .version(null)
+                .versionString(null)
+                .name(previousVersion.getName())
+                .description(previousVersion.getDescription())
+                .shapeDefinition(previousVersion.getShapeDefinition())
+                .urlPrefix(previousVersion.getUrlPrefix())
+                .abstractSchema(previousVersion.getAbstractSchema())
+                .previousVersion(null)
+                .extendsSchemas(previousVersion.getExtendsSchemas())
+                .children(previousVersion.getChildren())
+                .links(previousVersion.getLinks())
+                .build();
+    }
 }
