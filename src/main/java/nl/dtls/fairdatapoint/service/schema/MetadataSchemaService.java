@@ -22,18 +22,15 @@
  */
 package nl.dtls.fairdatapoint.service.schema;
 
-import io.swagger.v3.oas.models.tags.Tag;
 import nl.dtls.fairdatapoint.api.dto.schema.MetadataSchemaBundleDTO;
 import nl.dtls.fairdatapoint.api.dto.schema.MetadataSchemaChangeDTO;
 import nl.dtls.fairdatapoint.api.dto.schema.MetadataSchemaDetailDTO;
 import nl.dtls.fairdatapoint.api.dto.schema.MetadataSchemaPublishDTO;
 import nl.dtls.fairdatapoint.database.mongo.repository.MetadataSchemaRepository;
 import nl.dtls.fairdatapoint.entity.exception.ResourceNotFoundException;
-import nl.dtls.fairdatapoint.entity.metadata.Metadata;
 import nl.dtls.fairdatapoint.entity.schema.MetadataSchema;
 import nl.dtls.fairdatapoint.entity.schema.MetadataSchemaChild;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.core.query.Meta;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -50,13 +47,13 @@ public class MetadataSchemaService {
     @Autowired
     private MetadataSchemaMapper metadataSchemaMapper;
 
-    private static final Comparator<MetadataSchema> SEMVER_COMPARATOR = Comparator.comparing(MetadataSchema::getVersion);
+    private static final Comparator<MetadataSchema> SEMVER_COMPARATOR = Comparator.comparing(MetadataSchema::getVersion, Comparator.nullsFirst(Comparator.reverseOrder()));
 
     public List<MetadataSchemaBundleDTO> getAllBundles() {
         List<MetadataSchema> schemas = metadataSchemaRepository.findAll();
         Map<String, List<MetadataSchema>> schemaBundles = schemas.stream().collect(Collectors.groupingBy(MetadataSchema::getUuid));
         return schemaBundles.values().stream().map(b ->
-                metadataSchemaMapper.toBundleDTO(b.stream().sorted(SEMVER_COMPARATOR.reversed()).collect(Collectors.toList()))
+                metadataSchemaMapper.toBundleDTO(b.stream().sorted(SEMVER_COMPARATOR).collect(Collectors.toList()))
         ).collect(Collectors.toList());
     }
 
