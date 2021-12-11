@@ -47,6 +47,9 @@ public class MetadataSchemaService {
     @Autowired
     private MetadataSchemaMapper metadataSchemaMapper;
 
+    @Autowired
+    private MetadataSchemaValidator metadataSchemaValidator;
+
     private static final Comparator<MetadataSchema> SEMVER_COMPARATOR = Comparator.comparing(MetadataSchema::getVersion, Comparator.nullsFirst(Comparator.reverseOrder()));
 
     public List<MetadataSchemaBundleDTO> getAllBundles() {
@@ -94,7 +97,6 @@ public class MetadataSchemaService {
     }
 
     public Optional<MetadataSchemaDetailDTO> updateDraft(String uuid, MetadataSchemaChangeDTO dto) {
-        // TODO: validate
         // TODO: improve work with two optionals
         Optional<MetadataSchema> oPreviousVersion = getMostRecentVersion(uuid);
         Optional<MetadataSchema> oDraft = metadataSchemaRepository.findByUuidAndVersionString(uuid, null);
@@ -103,6 +105,7 @@ public class MetadataSchemaService {
             List<MetadataSchema> extendsSchemas = extractExtendsSchemas(dto);
             List<MetadataSchemaChild> children = extractChildren(dto);
             MetadataSchema schema = metadataSchemaMapper.fromChangeDTO(draft, dto, Optional.ofNullable(draft.getPreviousVersion()), extendsSchemas, children);
+            metadataSchemaValidator.validate(schema);
             metadataSchemaRepository.save(schema);
             return Optional.of(metadataSchemaMapper.toDetailDTO(schema));
         }
@@ -111,6 +114,7 @@ public class MetadataSchemaService {
             List<MetadataSchema> extendsSchemas = extractExtendsSchemas(dto);
             List<MetadataSchemaChild> children = extractChildren(dto);
             MetadataSchema schema = metadataSchemaMapper.fromChangeDTO(draft, dto, oPreviousVersion, extendsSchemas, children);
+            metadataSchemaValidator.validate(schema);
             metadataSchemaRepository.save(schema);
             return metadataSchemaMapper.toDetailDTO(schema);
         });
@@ -140,6 +144,7 @@ public class MetadataSchemaService {
         Optional<MetadataSchema> oDraft = metadataSchemaRepository.findByUuidAndVersionString(uuid, null);
         return oDraft.map(draft -> {
             MetadataSchema schema = metadataSchemaMapper.fromPublishDTO(draft, dto);
+            metadataSchemaValidator.validate(schema);
             metadataSchemaRepository.save(schema);
             return metadataSchemaMapper.toDetailDTO(schema);
         });

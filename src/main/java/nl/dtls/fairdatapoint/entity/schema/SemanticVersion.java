@@ -62,4 +62,8 @@ public class SemanticVersion implements Comparable<SemanticVersion> {
                 .thenComparing(SemanticVersion::getPatch)
                 .compare(this, other);
     }
+
+    public boolean isSuccessor(SemanticVersion version) {
+        return compareTo(version) > 0;
+    }
 }

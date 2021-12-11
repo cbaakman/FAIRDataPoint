@@ -22,8 +22,71 @@
  */
 package nl.dtls.fairdatapoint.service.schema;
 
+import nl.dtls.fairdatapoint.database.mongo.repository.MetadataSchemaRepository;
+import nl.dtls.fairdatapoint.entity.exception.ValidationException;
+import nl.dtls.fairdatapoint.entity.schema.MetadataSchema;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Objects;
+
+import static java.lang.String.format;
 
 @Component
 public class MetadataSchemaValidator {
+
+    @Autowired
+    private MetadataSchemaRepository metadataSchemaRepository;
+
+    public void validate(MetadataSchema schema) {
+        validateUrlPrefix(schema);
+
+        validateVersion(schema);
+
+        validateExtends(schema);
+
+        validateChildren(schema);
+    }
+
+    private void validateUrlPrefix(MetadataSchema schema) {
+        List<MetadataSchema> potentiallyConflictingSchemas = metadataSchemaRepository.findByUrlPrefix(schema.getUrlPrefix());
+        potentiallyConflictingSchemas.forEach(s -> {
+            if(!Objects.equals(s.getUuid(), schema.getUuid())) {
+                throw new ValidationException(format("URL prefix '%s' is already used in schemas '%s'", s.getUrlPrefix(), s.getUuid()));
+            }
+        });
+    }
+
+    private void validateVersion(MetadataSchema schema) {
+        if (schema.getPreviousVersion() != null) {
+            MetadataSchema prev = schema.getPreviousVersion();
+            if (prev.getVersion() == null) {
+                throw new ValidationException(format("Cannot base draft on other draft in schemas '%s'", schema.getUuid()));
+            }
+            if (schema.getVersion() != null && !schema.getVersion().isSuccessor(prev.getVersion())) {
+                throw new ValidationException(format("Version '%s' is lower then '%s' of previous version", schema.getVersion().toString(), prev.getVersion().toString()));
+            }
+        }
+    }
+
+    private void validateExtends(MetadataSchema schema) {
+        // TODO: can have non-abstract parents if non-abstract?
+        if (schema.getAbstractSchema()) {
+            schema.getExtendsSchemas().forEach(parent -> {
+                if (!parent.getAbstractSchema()) {
+                    throw new ValidationException("Abstract schema can extend only abstract schemas");
+                }
+            });
+        }
+    }
+
+    private void validateChildren(MetadataSchema schema) {
+        // TODO: can have abstract schema children?
+        schema.getChildren().forEach(child -> {
+            if (child.getChildSchema().getAbstractSchema()) {
+                throw new ValidationException("Abstract schema cannot be used as child");
+            }
+        });
+    }
 }
