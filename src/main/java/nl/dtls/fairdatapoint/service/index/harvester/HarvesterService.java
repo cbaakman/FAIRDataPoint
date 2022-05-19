@@ -124,6 +124,7 @@ public class HarvesterService {
 
             return nodes;
         } catch (HttpClientErrorException ex) {
+            log.warn(format("Stopping to harvest due to: %s", ex.getMessage()));
             return nodes;
         }
     }
@@ -146,6 +147,7 @@ public class HarvesterService {
             return result;
         } catch (RestClientException e) {
             log.info(format("Request to '%s' failed", uri));
+            e.printStackTrace();
             throw new HttpClientErrorException(
                     HttpStatus.BAD_GATEWAY,
                     ofNullable(e.getMessage()).orElse("HTTP request failed to proceed")
