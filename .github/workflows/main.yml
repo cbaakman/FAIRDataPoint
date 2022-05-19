@@ -70,9 +70,9 @@ jobs:
         mvn --version
 
 # (3) -> Test and build
-    - name: Run tests
-      run: |
-        mvn --quiet -U -B org.jacoco:jacoco-maven-plugin:prepare-agent test
+#    - name: Run tests
+#      run: |
+#        mvn --quiet -U -B org.jacoco:jacoco-maven-plugin:prepare-agent test
 
     - name: Build package
       run: |
