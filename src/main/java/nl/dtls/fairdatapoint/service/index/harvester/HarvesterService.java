@@ -33,13 +33,15 @@ import org.eclipse.rdf4j.model.vocabulary.LDP;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,7 +49,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static java.util.Optional.ofNullable;
 import static nl.dtls.fairdatapoint.entity.metadata.MetadataGetter.getChildren;
 import static nl.dtls.fairdatapoint.util.HttpUtil.getRdfContentType;
 import static nl.dtls.fairdatapoint.util.RdfIOUtil.read;
@@ -63,7 +64,7 @@ public class HarvesterService {
     private static final String DEFAULT_NAVIGATION_SHACL = "defaultNavigationShacl.ttl";
 
     @Autowired
-    private RestTemplate restTemplate;
+    private HttpClient httpClient;
 
     @Autowired
     private GenericMetadataRepository genericMetadataRepository;
@@ -123,35 +124,33 @@ public class HarvesterService {
             }
 
             return nodes;
-        } catch (HttpClientErrorException ex) {
+        } catch (Exception ex) {
+            log.warn(format("Exception occurred while harvesting '%s': %s", uri, ex.getMessage()));
             return nodes;
         }
     }
 
     private Model makeRequest(String uri) {
         log.info(format("Making request to '%s'", uri));
-        HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(List.of(MediaType.parseMediaType(RDFFormat.TURTLE.getDefaultMIMEType())));
-        HttpEntity<Void> entity = new HttpEntity<>(null, headers);
         try {
-            ResponseEntity<String> response = restTemplate.exchange(uri, HttpMethod.GET, entity, String.class);
-            if (!response.getStatusCode().is2xxSuccessful()) {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(uri))
+                    .header(HttpHeaders.ACCEPT, RDFFormat.TURTLE.getDefaultMIMEType())
+                    .GET().build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != HttpStatus.OK.value()) {
                 log.info(format("Request to '%s' failed", uri));
-                throw new HttpClientErrorException(response.getStatusCode());
+                throw new RuntimeException(format("Request to '%s' failed: HTTP status %s", uri, response.statusCode()));
             }
-            RDFFormat rdfContentType = getRdfContentType(response.getHeaders().getContentType().getType());
+            RDFFormat rdfContentType = getRdfContentType(response.headers().firstValue(HttpHeaders.CONTENT_TYPE).orElse(RDFFormat.TURTLE.getDefaultMIMEType()));
             log.info(format("Request to '%s' successfully received", uri));
-            Model result = read(response.getBody(), uri, rdfContentType);
+            Model result = read(response.body(), uri, rdfContentType);
             log.info(format("Request to '%s' successfully parsed", uri));
             return result;
-        } catch (RestClientException e) {
+        } catch (Exception ex) {
             log.info(format("Request to '%s' failed", uri));
-            throw new HttpClientErrorException(
-                    HttpStatus.BAD_GATEWAY,
-                    ofNullable(e.getMessage()).orElse("HTTP request failed to proceed")
-            );
+            throw new RuntimeException(format("Request to '%s' failed: %s", uri, ex.getMessage()));
         }
     }
-
 
 }

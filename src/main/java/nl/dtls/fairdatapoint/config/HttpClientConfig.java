@@ -27,6 +27,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.net.http.HttpClient;
 import java.time.Duration;
 
@@ -48,5 +52,4 @@ public class HttpClientConfig {
                 .followRedirects(HttpClient.Redirect.ALWAYS)
                 .build();
     }
-
 }
