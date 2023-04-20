@@ -1,10 +1,15 @@
-package nl.dtls.fairdatapoint.database.rdf.ontology;
+package nl.dtls.fairdatapoint.database.ontology;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAnnotation;
@@ -20,12 +25,13 @@ import org.semanticweb.owlapi.model.OWLObject;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.reasoner.NodeSet;
+import org.semanticweb.owlapi.vocab.OWLRDFVocabulary;
 
 public class OntologySearcher {
 	
 	private boolean filterPunctuation;
 	private List<String> stopWords;
-	private Map<OWLOntology, Map<String, OWLEntity>> ontologySplits = new HashMap<OWLOntology, Map<String, OWLEntity>>();
+	private Map<OWLOntology, Map<String, OWLObject>> ontologySplits = new HashMap<OWLOntology, Map<String, OWLObject>>();
 	private Map<String, Integer> ontologyCount = new HashMap<String, Integer>();
 	
 	static private OWLOntologyManager ontologyManager = OWLManager.createOWLOntologyManager();
@@ -48,19 +54,19 @@ public class OntologySearcher {
 	private void cleanData() {
 		
 		ontologyCount.clear();
-		for (Map<String, OWLEntity> v : ontologySplits.values())
+		for (Map<String, OWLObject> v : ontologySplits.values())
 			v.clear();
 	}
 
-	private static Map<OWLOntology, Map<String, OWLEntity>> loadOntologies(List<String> ontologyURIs) {
+	private static Map<OWLOntology, Map<String, OWLObject>> loadOntologies(List<String> ontologyURIs) {
 		
-		Map<OWLOntology, Map<String, OWLEntity>> map = new HashMap<OWLOntology, Map<String, OWLEntity>>();
+		Map<OWLOntology, Map<String, OWLObject>> map = new HashMap<OWLOntology, Map<String, OWLObject>>();
 		
 		for (String ontologyURI : ontologyURIs) {
 			
 			OWLOntology ontology = ontologyManager.getOntology(IRI.create(ontologyURI));
 			
-			map.put(ontology, new HashMap<String, OWLEntity>());
+			map.put(ontology, new HashMap<String, OWLObject>());
 		}
 		
 		return map;
@@ -72,7 +78,8 @@ public class OntologySearcher {
 		
 		for (String word : input.toLowerCase().split(",")) {
 			
-			word = wordWithoutPunctuation(word);
+			if (filterPunctuation)
+				word = wordWithoutPunctuation(word);
 			
 			if (!stopWords.contains(word) && word.length() > 0)
 				result.add(word);
@@ -96,11 +103,11 @@ public class OntologySearcher {
 		return individuals;
 	}
 	
-	private static List<OWLObject> getLabels(OWLEntity entity) {
+	private static List<OWLObject> getLabels(OWLObject object) {
 		
 		List<OWLObject> result = new ArrayList<OWLObject>();
 		
-		for(OWLClass owlClass: entity.getClassesInSignature()) {
+		for(OWLClass owlClass: object.getClassesInSignature()) {
 			
 			for (OWLAnnotationProperty property : owlClass.getAnnotationPropertiesInSignature()) {
 				
@@ -110,6 +117,22 @@ public class OntologySearcher {
 		}
 		
 		return result;
+	}
+	
+	private static OWLEntity getValue(OWLObject object) {
+		
+		for (OWLAnnotationProperty property : object.getAnnotationPropertiesInSignature()) {
+			
+			if (property.getIRI().equals(RDF.VALUE))
+				return property;
+		}
+		
+		return null;
+	}
+	
+	private boolean isObsolete(OWLObject object) {
+		
+		return object.toString().contains("Obsolete Class");
 	}
 	
 	private void addCountFor(String label) {
@@ -129,28 +152,46 @@ public class OntologySearcher {
 			ontologyCount.put(label, 1);
 	}
 	
-	private void addConcepts(OWLObject result, OWLOntology ontology) {
-		for (OWLClass relatedClass : getRelatedClasses(result)) {
 
-			List<OWLObject> labels = getLabels(relatedClass);
+
+	private List<OWLObject> getTypes(OWLObject object) {
+
+		List<OWLObject> result = new ArrayList<OWLObject>();
+		
+		for (OWLAnnotationProperty property : object.getAnnotationPropertiesInSignature()) {
+			
+			if (property.getIRI().equals(RDF.TYPE)) {
+				
+				result.add(property);
+			}
+		}
+		
+		return result;
+	}
+	
+	private void addConcepts(OWLObject result, OWLOntology ontology) {
+		for (OWLObject type : getTypes(result)) {
+
+			List<OWLObject> labels = getLabels(type);
 
 			boolean hasObsolete = false;
 			for (OWLObject label : labels) {
 				hasObsolete = hasObsolete || isObsolete(label);
 			}
 			if (!hasObsolete && labels.size() > 0) {
-				addConcept(labels.get(0), relatedClass, ontology);
+				addConcept(labels.get(0), type, ontology);
 			}
 			else {
-				OWLEntity value = getValue(relatedClass);
-				
-				labels = getLabels(value);
-				if (labels.size() > 0)
-					addConcept(labels.get(0), value, ontology);
+				OWLEntity value = getValue(type);
+				if (value != null) {
+					labels = getLabels(value);
+					if (labels.size() > 0)
+						addConcept(labels.get(0), value, ontology);
+				}
 			}
 		}
 	}
-	
+
 	private void addConcept(OWLObject label, OWLObject result, OWLOntology ontology) {
 		
 		String key = label.toString().toLowerCase();
@@ -160,10 +201,32 @@ public class OntologySearcher {
 		incrementCountFor(key);
 	}
 	
-	public OntologySearcher(List<String> ontologyURIs, boolean filterPunctuation) {
+	public OntologySearcher(List<String> ontologyURIs, boolean filterPunctuation) throws IOException {
 		filterPunctuation = filterPunctuation;
 		stopWords = getStopWords();
 		ontologySplits = loadOntologies(ontologyURIs);
+	}
+
+
+	private List<String> getStopWords() throws IOException {
+		
+		Path path = Path.of(OntologySearcher.class.getResource("english-stopwords.txt").toString());
+		
+		return Files.readAllLines(path);
+	}
+
+	private OWLIndividual searchOneInOntologyWithLabel(OWLOntology ontology, String s) {
+		
+		for (OWLIndividual individual : getIndividuals(ontology)) {
+			
+			for (OWLObject object : getLabels(individual)) {
+				
+				if (object.toString().equals(s))
+					return individual;
+			}
+		}
+		
+		return null;
 	}
 	
 	public String search(String input) {
@@ -177,14 +240,14 @@ public class OntologySearcher {
 		for (OWLOntology ontology : ontologySplits.keySet()) {
 			for (String term : inputTerms) {
 				for (OWLIndividual individual : getIndividuals(ontology)) {
-					for (OWLLiteral label : getLabels(individual)) {
+					for (OWLObject label : getLabels(individual)) {
 						if (label.toString().contains(term)) {
 							addConcepts(individual, ontology);
 						}
 					}
 				}
 				
-				OWLIndividual concept = searchOneInOntology(term);
+				OWLIndividual concept = searchOneInOntologyWithLabel(ontology, term);
 				if (concept != null) {
 					addConcepts(concept, ontology);
 				}
