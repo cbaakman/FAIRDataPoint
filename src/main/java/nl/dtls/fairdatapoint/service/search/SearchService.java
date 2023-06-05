@@ -25,6 +25,7 @@ package nl.dtls.fairdatapoint.service.search;
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
 import nl.dtls.fairdatapoint.api.dto.search.*;
+import nl.dtls.fairdatapoint.database.ontology.OntologySearcher;
 import nl.dtls.fairdatapoint.database.rdf.repository.exception.MetadataRepositoryException;
 import nl.dtls.fairdatapoint.database.rdf.repository.generic.GenericMetadataRepository;
 import nl.dtls.fairdatapoint.entity.exception.ResourceNotFoundException;
@@ -76,6 +77,8 @@ public class SearchService {
 
     @Autowired
     private SearchFilterCache searchFilterCache;
+    
+    private OntologySearcher ontologySearcher = new OntologySearcher(true);
 
     @Autowired
     @Qualifier("persistentUrl")
@@ -88,7 +91,14 @@ public class SearchService {
     }
 
     public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
-        final List<SearchResult> results = metadataRepository.findByLiteral(l(reqDto.getQuery()));
+    	
+    	List<String> extendedQueries = ontologySearcher.search(reqDto.getQuery());
+    	
+    	final List<SearchResult> results = new ArrayList<SearchResult>();
+    	for (String query : extendedQueries) {
+    		results.addAll(metadataRepository.findByLiteral(l(query)));
+    	}
+    	
         return processSearchResults(results);
     }
 
