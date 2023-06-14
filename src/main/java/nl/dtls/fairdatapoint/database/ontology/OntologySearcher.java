@@ -31,8 +31,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
@@ -44,6 +49,7 @@ import org.semanticweb.owlapi.model.OWLAnnotationValue;
 import org.semanticweb.owlapi.model.OWLAnonymousIndividual;
 import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLClass;
+import org.semanticweb.owlapi.model.OWLClassExpression;
 import org.semanticweb.owlapi.model.OWLDataFactory;
 import org.semanticweb.owlapi.model.OWLDataProperty;
 import org.semanticweb.owlapi.model.OWLEntity;
@@ -57,6 +63,7 @@ import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.reasoner.NodeSet;
+import org.semanticweb.owlapi.search.EntitySearcher;
 import org.semanticweb.owlapi.util.SimpleIRIMapper;
 import org.semanticweb.owlapi.vocab.OWLRDFVocabulary;
 import org.slf4j.Logger;
@@ -126,73 +133,41 @@ public class OntologySearcher {
 	public void indexOntologies(URL[] ontologyURLs) {
 		
 		for (URL ontologyURL : ontologyURLs) {
-			
-			OWLOntology ontology = null;
 			try {
-				ontology = loadOntology(ontologyURL);
+				OWLOntology ontology = loadOntology(ontologyURL);
+				
+				OWLAnnotationProperty rdfsLabelProperty = dataFactory.getRDFSLabel();
+				
+				for (OWLClass cls : ontology.getClassesInSignature()) {
+
+					Set<OWLAnnotation> labelAnnotations =  EntitySearcher.getAnnotations(cls, ontology, rdfsLabelProperty)
+															 .collect(Collectors.toCollection(LinkedHashSet::new));
+					for (OWLAnnotation labelAnnotation : labelAnnotations) {
+						
+						String label = getStringFromLiteral(labelAnnotation.getValue().asLiteral().get());
+					}
+				}
 			}
 			catch (Exception e) {
 				
-				log.error("while loading {}: {}", ontologyURL.toString(), e.toString());
+				log.error("while loading {}: {}", ontologyURL, e);
 				
 				continue;
 			}
-			
-			indexProperties(ontology);
-			indexClasses(ontology);
 		}
 	}
-
-	private void indexClasses(OWLOntology ontology) {
-		for (OWLClass cls : ontology.getClassesInSignature())
-			indexClass(cls);
-	}
-
-	private void indexClass(OWLClass cls) {
+	
+	static Pattern literalStringPattern = Pattern.compile("^\\\"(.*)\\\"\\^\\^xsd:string$", Pattern.CASE_INSENSITIVE);
+	
+	private static String getStringFromLiteral(OWLLiteral literal) throws Exception {
 		
-		for (OWLClass clss : cls.getClassesInSignature()) {
-			indexClass(clss);
+		Matcher matcher = literalStringPattern.matcher(literal.toString());
+		
+		if (matcher.find()) {
+			return matcher.group(1);
 		}
-		
-		List<String> terms = new ArrayList<String>();
-		for (OWLAnonymousIndividual individual : cls.getAnonymousIndividuals()) {
-			terms.addAll(getIndividualTerms(individual));
-		}
-		
-		for (OWLNamedIndividual individual : cls.getIndividualsInSignature()) {
-			terms.addAll(getIndividualTerms(individual));
-		}
-		
-		for (String term1 : terms) {
-			for (String term2 : terms) {
-				
-				associate(term1, term2);
-			}
-		}
-	}
-
-	private List<String> getIndividualTerms(OWLIndividual individual) {
-		
-		log.debug("getting terms from individual {}", individual.toString());
-		
-		if (individual.isOWLNamedIndividual()) {
-			return getKeywordsFromString(individual.toString());
-		}
-		
-		// empty list
-		return new ArrayList<String>();
-	}
-
-	private void indexProperties(OWLOntology ontology) {
-
-		indexAnnotationProperties(ontology);
-		indexObjectProperties(ontology);
-	}
-
-	private void indexAnnotationProperties(OWLOntology ontology) {
-	}
-
-	private void indexObjectProperties(OWLOntology ontology) {
+		else
+			throw new Exception("no string in " + literal.toString());
 	}
 
 	private List<String> getKeywordsFromString(String input) {
