@@ -92,11 +92,11 @@ public class SearchService {
 
     public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
     	
-    	List<String> extendedQueries = ontologySearcher.search(reqDto.getQuery());
+    	Set<String> extendedKeywords = ontologySearcher.getExtendedKeywords(reqDto.getQuery());
     	
     	final List<SearchResult> results = new ArrayList<SearchResult>();
-    	for (String query : extendedQueries) {
-    		results.addAll(metadataRepository.findByLiteral(l(query)));
+    	for (String keyword : extendedKeywords) {
+    		results.addAll(metadataRepository.findByLiteral(l(keyword)));
     	}
     	
         return processSearchResults(results);

@@ -23,18 +23,28 @@
 package nl.dtls.fairdatapoint.database.ontology;
 
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
+
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import nl.dtls.fairdatapoint.WebIntegrationTest;
 import nl.dtls.fairdatapoint.database.rdf.repository.exception.MetadataRepositoryException;
 
-public class OntologySearcherTest extends WebIntegrationTest {
+public class OntologySearcherTest {
+	
+	static private Logger log = LoggerFactory.getLogger(OntologySearcherTest.class);
 
     @Test
-    @DisplayName("'search' should find something")
+    @DisplayName("'getExtendedKeywords' should find something")
     public void testSearch() throws MetadataRepositoryException {
     	
     	URL thesaurusURL = OntologySearcherTest.class.getClassLoader().getResource("ontologies/Thesaurus.owl");
@@ -42,5 +52,9 @@ public class OntologySearcherTest extends WebIntegrationTest {
     	OntologySearcher searcher = new OntologySearcher(true);
 		
     	searcher.indexOntologies(new URL[] {thesaurusURL});
+    	
+    	Set<String> keywords = searcher.getExtendedKeywords("disease");
+    	
+    	assertThat(keywords.size() > 0);
     }
 }

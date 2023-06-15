@@ -30,10 +30,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -80,7 +83,7 @@ public class OntologySearcher {
 	static private Logger log = LoggerFactory.getLogger(OntologySearcher.class);
 
 	public OntologySearcher(boolean filterPunctuation) {
-		filterPunctuation = filterPunctuation;
+		this.filterPunctuation = filterPunctuation;
 		
 		stopWords = getStopWords();
 	}
@@ -99,14 +102,19 @@ public class OntologySearcher {
 		return r;
 	}
 	
-	private Map<String, String> associations = new HashMap<String, String>();
+	private Map<String, List<String>> associations = new HashMap<String, List<String>>();
 	
-	private void associate(String s1, String s2) {
+	private void associate(String key, String value) {
 		
-		log.debug(String.format("associate %s with %s", s1, s2));
+		if (!associations.containsKey(key))
+			associations.put(key, new ArrayList<String>());
 		
-		associations.put(s1, s2);
-		associations.put(s2, s1);
+		associations.get(key).add(value);
+	}
+	
+	private List<String> getAssociations(String key) {
+		
+		return associations.get(key);
 	}
 
 	private static OWLOntology loadOntology(URL ontologyURL) throws IOException, OWLOntologyCreationException {
@@ -136,50 +144,92 @@ public class OntologySearcher {
 			try {
 				OWLOntology ontology = loadOntology(ontologyURL);
 				
-				OWLAnnotationProperty rdfsLabelProperty = dataFactory.getRDFSLabel();
-				
-				for (OWLClass cls : ontology.getClassesInSignature()) {
-
-					Set<OWLAnnotation> labelAnnotations =  EntitySearcher.getAnnotations(cls, ontology, rdfsLabelProperty)
-															 .collect(Collectors.toCollection(LinkedHashSet::new));
-					for (OWLAnnotation labelAnnotation : labelAnnotations) {
-						
-						String label = getStringFromLiteral(labelAnnotation.getValue().asLiteral().get());
-					}
-				}
+				indexOntology(ontology);
 			}
 			catch (Exception e) {
 				
-				log.error("while loading {}: {}", ontologyURL, e);
+				log.error("while loading {}:\n{}", ontologyURL, e);
 				
 				continue;
 			}
 		}
 	}
 	
+	private void indexOntology(OWLOntology ontology) {
+		
+		for (OWLClass cls : ontology.getClassesInSignature()) {
+			
+			indexClassAnnotations(ontology, cls);
+		}
+	}
+	
+	private void indexClassAnnotations(OWLOntology ontology, OWLClass cls) {
+		
+		Collection<OWLAnnotation> annotations =  EntitySearcher.getAnnotations(cls, ontology)
+												 .collect(Collectors.toCollection(LinkedHashSet::new));
+		
+		for (OWLAnnotation annotation : annotations) {
+				
+			Optional<OWLLiteral> optionalLiteral = annotation.getValue().asLiteral();
+			
+			if (optionalLiteral.isPresent()) {
+				
+				Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
+				
+				if (optionalText.isPresent()) {
+
+					if (annotation.getProperty().isLabel()) {
+						
+						for (String key : getKeywordsFromString(optionalText.get()))
+						
+							linkKeyToAnnotations(key, annotations);
+					}
+				}
+			}
+		}
+	}
+	
+	private void linkKeyToAnnotations(String key, Collection<OWLAnnotation> annotations) {
+		
+		for (OWLAnnotation annotation : annotations) {
+			
+			Optional<OWLLiteral> optionalLiteral = annotation.getValue().asLiteral();
+			
+			if (optionalLiteral.isPresent()) {
+				
+				Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
+				
+				for (String word : getKeywordsFromString(optionalText.get())) {
+					
+					associate(key, word);
+				}
+			}
+		}
+	}
+
 	static Pattern literalStringPattern = Pattern.compile("^\\\"(.*)\\\"\\^\\^xsd:string$", Pattern.CASE_INSENSITIVE);
 	
-	private static String getStringFromLiteral(OWLLiteral literal) throws Exception {
+	private static Optional<String> getStringFromLiteral(OWLLiteral literal) {
 		
 		Matcher matcher = literalStringPattern.matcher(literal.toString());
 		
 		if (matcher.find()) {
-			return matcher.group(1);
+			return Optional.of(matcher.group(1));
 		}
 		else
-			throw new Exception("no string in " + literal.toString());
+			return Optional.empty();
 	}
 
 	private List<String> getKeywordsFromString(String input) {
 		
 		List<String> result = new ArrayList<String>();
 		
-		for (String word : input.toLowerCase().split(",")) {
+		for (String word : input.toLowerCase().split(" ")) {
 			
 			if (filterPunctuation)
 				word = wordWithoutPunctuation(word);
 			
-			if (!stopWords.contains(word) && word.length() > 0)
+			if (!stopWords.contains(word) && word.length() > 3)
 				result.add(word);
 		}
 		
@@ -204,8 +254,15 @@ public class OntologySearcher {
 		}
 	}
 	
-	public List<String> search(String input) {
+	public Set<String> getExtendedKeywords(String input) {
 		
-			return new ArrayList<String>();
+		Set<String> keys = new HashSet<String>();
+		
+		for (String key : getKeywordsFromString(input))
+		{
+			keys.addAll(getAssociations(key));
+		}
+		
+		return keys;
 	}
 }
