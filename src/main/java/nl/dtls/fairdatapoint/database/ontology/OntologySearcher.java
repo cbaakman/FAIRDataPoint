@@ -94,7 +94,6 @@ public class OntologySearcher {
 		for (Character c : s.toCharArray()) 
 		{
 			if(Character.isLetterOrDigit(c)) {
-				
 				r += c;
 			}
 		}
@@ -102,6 +101,19 @@ public class OntologySearcher {
 		return r;
 	}
 	
+	// keeps track of how frequent a keyword occurs in the ontologies
+	private Map<String, Integer> keywordCount = new HashMap<String, Integer>();
+	
+	private void incrementKeywordCount(String keyword) {
+		
+		if (keywordCount.containsKey(keyword))
+			
+			keywordCount.put(keyword, keywordCount.get(keyword) + 1);
+		else
+			keywordCount.put(keyword, 1);
+	}
+	
+	// keeps track of keywords that occur together
 	private Map<String, List<String>> associations = new HashMap<String, List<String>>();
 	
 	private void associate(String key, String value) {
@@ -115,6 +127,12 @@ public class OntologySearcher {
 	private List<String> getAssociations(String key) {
 		
 		return associations.get(key);
+	}
+	
+	// The higher this value, the more up front
+	public double getKeywordRankingScore(String keyword) {
+		
+		return 1.0 / keywordCount.get(keyword);
 	}
 
 	private static OWLOntology loadOntology(URL ontologyURL) throws IOException, OWLOntologyCreationException {
@@ -177,12 +195,15 @@ public class OntologySearcher {
 				Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
 				
 				if (optionalText.isPresent()) {
+					
+					for (String key : getKeywordsFromString(optionalText.get())) {
+					
+						incrementKeywordCount(key);
 
-					if (annotation.getProperty().isLabel()) {
-						
-						for (String key : getKeywordsFromString(optionalText.get()))
+						if (annotation.getProperty().isLabel()) {
 						
 							linkKeyToAnnotations(key, annotations);
+						}
 					}
 				}
 			}

@@ -94,10 +94,30 @@ public class SearchService {
     	
     	Set<String> extendedKeywords = ontologySearcher.getExtendedKeywords(reqDto.getQuery());
     	
-    	final List<SearchResult> results = new ArrayList<SearchResult>();
+    	final Map<SearchResult, Double> resultScores = new TreeMap<SearchResult, Double>();
     	for (String keyword : extendedKeywords) {
-    		results.addAll(metadataRepository.findByLiteral(l(keyword)));
+    		
+    		for (SearchResult result : metadataRepository.findByLiteral(l(keyword))) {
+    			
+    			double score = 0.0;
+    			if (resultScores.containsKey(result)) {
+    				
+    				score = resultScores.get(result);
+    			}
+    			
+    			score += ontologySearcher.getKeywordRankingScore(keyword);
+    			
+				resultScores.put(result, score);
+    		}
     	}
+    	
+    	List<SearchResult> results = new ArrayList<SearchResult>(resultScores.keySet());
+    	Collections.sort(results, new Comparator<SearchResult>() {
+    		
+    		public int compare(SearchResult r1, SearchResult r2) {
+    			return (int)(1000 * (resultScores.get(r1) - resultScores.get(r2)));
+    		}
+    	});
     	
         return processSearchResults(results);
     }
