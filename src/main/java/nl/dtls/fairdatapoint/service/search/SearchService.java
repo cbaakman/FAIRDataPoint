@@ -79,8 +79,9 @@ public class SearchService {
 
     @Autowired
     private SearchFilterCache searchFilterCache;
-    
-    private OntologySearcher ontologySearcher = new OntologySearcher(true);
+
+    @Autowired
+    private OntologySearcher ontologySearcher;
 
     @Autowired
     @Qualifier("persistentUrl")

@@ -74,19 +74,13 @@ import org.slf4j.LoggerFactory;
 
 public class OntologySearcher {
 	
-	private boolean filterPunctuation;
-	private List<String> stopWords;
+	private boolean filterPunctuation = true;
+	private List<String> stopWords = getStopWords();
 	
 	static private OWLOntologyManager ontologyManager = OWLManager.createOWLOntologyManager();
 	static private OWLDataFactory dataFactory = OWLManager.getOWLDataFactory();
 	
 	static private Logger log = LoggerFactory.getLogger(OntologySearcher.class);
-
-	public OntologySearcher(boolean filterPunctuation) {
-		this.filterPunctuation = filterPunctuation;
-		
-		stopWords = getStopWords();
-	}
 	
 	private static String wordWithoutPunctuation(String s) {
 		
