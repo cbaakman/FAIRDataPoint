@@ -126,7 +126,10 @@ public class OntologySearcher {
 	
 	private List<String> getAssociations(String key) {
 		
-		return associations.get(key);
+		if (associations.containsKey(key))
+			return associations.get(key);
+		else
+			return new ArrayList<String>();
 	}
 	
 	// The higher this value, the more up front
@@ -281,6 +284,7 @@ public class OntologySearcher {
 		
 		for (String key : getKeywordsFromString(input))
 		{
+			keys.add(key);
 			keys.addAll(getAssociations(key));
 		}
 		
