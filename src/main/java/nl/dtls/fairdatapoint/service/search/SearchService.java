@@ -41,6 +41,8 @@ import org.apache.commons.lang.text.StrSubstitutor;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.query.MalformedQueryException;
 import org.eclipse.rdf4j.query.parser.sparql.SPARQLParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -89,6 +91,8 @@ public class SearchService {
     ) throws MetadataRepositoryException {
         return search(searchSavedQueryDTO.getVariables());
     }
+    
+	static private Logger log = LoggerFactory.getLogger(SearchService.class);
 
     public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
     	
