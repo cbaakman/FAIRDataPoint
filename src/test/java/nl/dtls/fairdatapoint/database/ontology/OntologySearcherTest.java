@@ -42,19 +42,19 @@ import nl.dtls.fairdatapoint.database.rdf.repository.exception.MetadataRepositor
 public class OntologySearcherTest {
 	
 	static private Logger log = LoggerFactory.getLogger(OntologySearcherTest.class);
-
+	
     @Test
     @DisplayName("'getExtendedKeywords' should find something")
     public void testSearch() throws MetadataRepositoryException {
     	
     	URL thesaurusURL = OntologySearcherTest.class.getClassLoader().getResource("ontologies/Thesaurus.owl");
     	
-    	OntologySearcher searcher = new OntologySearcher(true);
+    	OntologySearcher searcher = new OntologySearcher();
 		
     	searcher.indexOntologies(new URL[] {thesaurusURL});
     	
     	Set<String> keywords = searcher.getExtendedKeywords("disease");
     	
-    	assertThat(keywords.size() > 0);
+    	assertThat(keywords.size() > 1);
     }
 }
