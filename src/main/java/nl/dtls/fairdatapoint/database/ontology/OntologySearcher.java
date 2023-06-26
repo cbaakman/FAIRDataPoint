@@ -22,8 +22,12 @@
  */
 package nl.dtls.fairdatapoint.database.ontology;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
@@ -41,6 +45,9 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
@@ -95,6 +102,10 @@ public class OntologySearcher {
 		return r;
 	}
 	
+	private String[] ontologyURIStrings = {
+		"https://evs.nci.nih.gov/ftp1/NCI_Thesaurus/archive/23.05e_Release/Thesaurus_23.05e.OWL.zip"
+	};
+	
 	// keeps track of how frequent a keyword occurs in the ontologies
 	private Map<String, Integer> keywordCount = new HashMap<String, Integer>();
 	
@@ -110,6 +121,17 @@ public class OntologySearcher {
 	// keeps track of keywords that occur together
 	private Map<String, List<String>> associations = new HashMap<String, List<String>>();
 	
+	private List<String> getAssociations(String key) {
+		
+		if (associations.size() == 0)
+			indexOntologies(ontologyURIStrings);
+		
+		if (associations.containsKey(key))
+			return associations.get(key);
+		else
+			return new ArrayList<String>();
+	}
+	
 	private void associate(String key, String value) {
 		
 		if (!associations.containsKey(key))
@@ -118,28 +140,34 @@ public class OntologySearcher {
 		associations.get(key).add(value);
 	}
 	
-	private List<String> getAssociations(String key) {
-		
-		if (associations.containsKey(key))
-			return associations.get(key);
-		else
-			return new ArrayList<String>();
-	}
-	
 	// The higher this value, the more up front
 	public double getKeywordRankingScore(String keyword) {
+
+		if (keywordCount.size() == 0)
+			indexOntologies(ontologyURIStrings);
 		
 		return 1.0 / keywordCount.get(keyword);
 	}
 
-	private static OWLOntology loadOntology(URL ontologyURL) throws IOException, OWLOntologyCreationException {
+	private static OWLOntology loadOntology(String ontologyURLString) throws IOException, OWLOntologyCreationException {
+		
+		URL ontologyURL = new URL(ontologyURLString);
 		
 		InputStream input = ontologyURL.openStream();
+		
+		if (ontologyURLString.endsWith(".zip")) {
+			
+			ZipInputStream zipInput = new ZipInputStream(input);
+			
+			ZipEntry entry = zipInput.getNextEntry();
+			
+			input = zipInput;
+		}
 		
 		OWLOntology ontology = null;
 		
 		try {
-			log.debug("loading ontology {}", ontologyURL.toString());
+			log.debug("loading ontology {}", ontologyURLString);
 			
 			ontology = ontologyManager.loadOntologyFromOntologyDocument(input);
 		}
@@ -153,17 +181,17 @@ public class OntologySearcher {
 		return ontology;
 	}
 
-	public void indexOntologies(URL[] ontologyURLs) {
+	public void indexOntologies(String[] ontologyURLStrings) {
 		
-		for (URL ontologyURL : ontologyURLs) {
+		for (String ontologyURLString : ontologyURLStrings) {
 			try {
-				OWLOntology ontology = loadOntology(ontologyURL);
+				OWLOntology ontology = loadOntology(ontologyURLString);
 				
 				indexOntology(ontology);
 			}
 			catch (Exception e) {
 				
-				log.error("while loading {}:\n{}", ontologyURL, e);
+				log.error("while loading {}:\n{}", ontologyURLString, e);
 				
 				continue;
 			}

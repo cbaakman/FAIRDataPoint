@@ -47,14 +47,11 @@ public class OntologySearcherTest {
     @DisplayName("'getExtendedKeywords' should find something")
     public void testSearch() throws MetadataRepositoryException {
     	
-    	URL thesaurusURL = OntologySearcherTest.class.getClassLoader().getResource("ontologies/Thesaurus.owl");
-    	
     	OntologySearcher searcher = new OntologySearcher();
-		
-    	searcher.indexOntologies(new URL[] {thesaurusURL});
     	
     	Set<String> keywords = searcher.getExtendedKeywords("disease");
     	
-    	assertThat(keywords.size() > 1);
+    	if (keywords.size() <= 1)
+    		fail();
     }
 }
