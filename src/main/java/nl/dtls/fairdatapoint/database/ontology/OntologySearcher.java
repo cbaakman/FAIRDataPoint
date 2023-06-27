@@ -23,6 +23,8 @@
 package nl.dtls.fairdatapoint.database.ontology;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -48,6 +50,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.apache.commons.io.FileUtils;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.semanticweb.owlapi.apibinding.OWLManager;
@@ -77,6 +80,7 @@ import org.semanticweb.owlapi.util.SimpleIRIMapper;
 import org.semanticweb.owlapi.vocab.OWLRDFVocabulary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -90,22 +94,13 @@ public class OntologySearcher {
 	
 	static private Logger log = LoggerFactory.getLogger(OntologySearcher.class);
 	
-	private static String wordWithoutPunctuation(String s) {
+	@Autowired
+	public OntologySearcher() {
 		
-		String r = "";
-		for (Character c : s.toCharArray()) 
-		{
-			if(Character.isLetterOrDigit(c)) {
-				r += c;
-			}
-		}
+		log.info("beginning to index all ontologies");
 		
-		return r;
+		indexAllOntologies();
 	}
-	
-	private String[] ontologyURIStrings = {
-		"https://evs.nci.nih.gov/ftp1/NCI_Thesaurus/archive/23.05e_Release/Thesaurus_23.05e.OWL.zip"
-	};
 	
 	// keeps track of how frequent a keyword occurs in the ontologies
 	private Map<String, Integer> keywordCount = new HashMap<String, Integer>();
@@ -123,10 +118,7 @@ public class OntologySearcher {
 	private Map<String, List<String>> associations = new HashMap<String, List<String>>();
 	
 	private List<String> getAssociations(String key) {
-		
-		if (associations.size() == 0)
-			indexOntologies();
-		
+				
 		if (associations.containsKey(key))
 			return associations.get(key);
 		else
@@ -143,31 +135,53 @@ public class OntologySearcher {
 	
 	// The higher this value, the more up front
 	public double getKeywordRankingScore(String keyword) {
-
-		if (keywordCount.size() == 0)
-			indexOntologies();
 		
 		return 1.0 / keywordCount.get(keyword);
 	}
 	
+	private static File getCacheDirectory() throws IOException {
+		
+		File directory = new File("./fdp-ontology-cache");
+		
+		if (!directory.isDirectory()) {
+			directory.mkdir();
+		}
+		
+		return directory;
+	}
+	
 	private static OWLOntology fetchThesaurus() throws IOException, OWLOntologyCreationException {
 		
-		URL ontologyURL = new URL("https://evs.nci.nih.gov/ftp1/NCI_Thesaurus/archive/23.05e_Release/Thesaurus_23.05e.OWL.zip");
+		File cachePath = new File(getCacheDirectory(), "Thesaurus_23.05e.OWL.zip");
 		
-		InputStream urlInput = ontologyURL.openStream();
+		if (!cachePath.isFile()) {
+
+			log.info("downloading {}", cachePath.getName());
+			
+			URL ontologyURL = new URL("https://evs.nci.nih.gov/ftp1/NCI_Thesaurus/archive/23.05e_Release/Thesaurus_23.05e.OWL.zip");
+			
+			FileUtils.copyURLToFile(ontologyURL, cachePath);
+		}
+
+		log.info("parsing {}", cachePath.getName());
 		
-		ZipInputStream zipInput = new ZipInputStream(urlInput);
+		InputStream input = new FileInputStream(cachePath.toString());
+		
+		ZipInputStream zipInput = new ZipInputStream(input);
 		
 		zipInput.getNextEntry();
 		
 		return ontologyManager.loadOntologyFromOntologyDocument(zipInput);
 	}
 
-	public void indexOntologies() {
+	public void indexAllOntologies() {
 		
 		try {
 			OWLOntology thesaurus = fetchThesaurus();
+			log.info("finished loading the thesaurus ontology");
+			
 			indexOntology(thesaurus);
+			log.info("finished indexing the thesaurus ontology");
 			
 		} catch (IOException e) {
 			log.error("I/O exception on indexing thesaurus: {}", e);
@@ -186,6 +200,7 @@ public class OntologySearcher {
 	}
 	
 	private void indexClassAnnotations(OWLOntology ontology, OWLClass cls) {
+		
 		
 		Collection<OWLAnnotation> annotations =  EntitySearcher.getAnnotations(cls, ontology)
 												 .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -267,6 +282,18 @@ public class OntologySearcher {
 		return result;
 	}
 
+	private static String wordWithoutPunctuation(String s) {
+		
+		String r = "";
+		for (Character c : s.toCharArray()) 
+		{
+			if(Character.isLetterOrDigit(c)) {
+				r += c;
+			}
+		}
+		
+		return r;
+	}
 
 	private List<String> getStopWords() {
 		
