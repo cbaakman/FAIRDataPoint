@@ -120,7 +120,13 @@ public class SearchService {
     	Collections.sort(results, new Comparator<SearchResult>() {
     		
     		public int compare(SearchResult r1, SearchResult r2) {
-    			return (int)(1000 * (resultScores.get(r1) - resultScores.get(r2)));
+    			
+    			if (resultScores.get(r1) < resultScores.get(r2))
+    				return -1;
+    			else if (resultScores.get(r1) > resultScores.get(r2))
+    				return 1;
+    			else
+    				return 0;
     		}
     	});
     	
