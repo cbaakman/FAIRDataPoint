@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
@@ -78,7 +77,9 @@ import org.semanticweb.owlapi.util.SimpleIRIMapper;
 import org.semanticweb.owlapi.vocab.OWLRDFVocabulary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
+@Service
 public class OntologySearcher {
 	
 	private boolean filterPunctuation = true;
@@ -124,7 +125,7 @@ public class OntologySearcher {
 	private List<String> getAssociations(String key) {
 		
 		if (associations.size() == 0)
-			indexOntologies(ontologyURIStrings);
+			indexOntologies();
 		
 		if (associations.containsKey(key))
 			return associations.get(key);
@@ -144,57 +145,35 @@ public class OntologySearcher {
 	public double getKeywordRankingScore(String keyword) {
 
 		if (keywordCount.size() == 0)
-			indexOntologies(ontologyURIStrings);
+			indexOntologies();
 		
 		return 1.0 / keywordCount.get(keyword);
 	}
-
-	private static OWLOntology loadOntology(String ontologyURLString) throws IOException, OWLOntologyCreationException {
+	
+	private static OWLOntology fetchThesaurus() throws IOException, OWLOntologyCreationException {
 		
-		URL ontologyURL = new URL(ontologyURLString);
+		URL ontologyURL = new URL("https://evs.nci.nih.gov/ftp1/NCI_Thesaurus/archive/23.05e_Release/Thesaurus_23.05e.OWL.zip");
 		
-		InputStream input = ontologyURL.openStream();
+		InputStream urlInput = ontologyURL.openStream();
 		
-		if (ontologyURLString.endsWith(".zip")) {
-			
-			ZipInputStream zipInput = new ZipInputStream(input);
-			
-			ZipEntry entry = zipInput.getNextEntry();
-			
-			input = zipInput;
-		}
+		ZipInputStream zipInput = new ZipInputStream(urlInput);
 		
-		OWLOntology ontology = null;
+		zipInput.getNextEntry();
 		
-		try {
-			log.debug("loading ontology {}", ontologyURLString);
-			
-			ontology = ontologyManager.loadOntologyFromOntologyDocument(input);
-		}
-		finally {
-			input.close();
-		}
-		
-		if (ontology == null)
-			throw new NullPointerException("Got null while trying to create an ontology from " + ontologyURL);
-			
-		return ontology;
+		return ontologyManager.loadOntologyFromOntologyDocument(zipInput);
 	}
 
-	public void indexOntologies(String[] ontologyURLStrings) {
+	public void indexOntologies() {
 		
-		for (String ontologyURLString : ontologyURLStrings) {
-			try {
-				OWLOntology ontology = loadOntology(ontologyURLString);
-				
-				indexOntology(ontology);
-			}
-			catch (Exception e) {
-				
-				log.error("while loading {}:\n{}", ontologyURLString, e);
-				
-				continue;
-			}
+		try {
+			OWLOntology thesaurus = fetchThesaurus();
+			indexOntology(thesaurus);
+			
+		} catch (IOException e) {
+			log.error("I/O exception on indexing thesaurus: {}", e);
+			
+		} catch (OWLOntologyCreationException e) {
+			log.error("ontology exception on indexing thesaurus: {}", e);
 		}
 	}
 	
@@ -245,9 +224,12 @@ public class OntologySearcher {
 				
 				Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
 				
-				for (String word : getKeywordsFromString(optionalText.get())) {
-					
-					associate(key, word);
+				if (optionalText.isPresent()) {
+				
+					for (String word : getKeywordsFromString(optionalText.get())) {
+						
+						associate(key, word);
+					}
 				}
 			}
 		}
@@ -260,10 +242,13 @@ public class OntologySearcher {
 		Matcher matcher = literalStringPattern.matcher(literal.toString());
 		
 		if (matcher.find()) {
+			// matched string pattern
 			return Optional.of(matcher.group(1));
 		}
-		else
+		else {
+			// this is not a string
 			return Optional.empty();
+		}
 	}
 
 	private List<String> getKeywordsFromString(String input) {

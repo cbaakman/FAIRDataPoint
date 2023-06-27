@@ -99,7 +99,7 @@ public class SearchService {
     	
     	Set<String> extendedKeywords = ontologySearcher.getExtendedKeywords(reqDto.getQuery());
     	
-    	final Map<SearchResult, Double> resultScores = new TreeMap<SearchResult, Double>();
+    	final Map<SearchResult, Double> resultScores = new HashMap<SearchResult, Double>();
     	for (String keyword : extendedKeywords) {
     		
     		for (SearchResult result : metadataRepository.findByLiteral(l(keyword))) {
