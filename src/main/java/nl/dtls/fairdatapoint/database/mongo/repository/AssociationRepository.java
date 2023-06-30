@@ -20,42 +20,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package nl.dtls.fairdatapoint.database.ontology;
+package nl.dtls.fairdatapoint.database.mongo.repository;
 
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
-
-import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-import nl.dtls.fairdatapoint.BaseIntegrationTest;
-import nl.dtls.fairdatapoint.WebIntegrationTest;
-import nl.dtls.fairdatapoint.database.rdf.repository.exception.MetadataRepositoryException;
+import nl.dtls.fairdatapoint.entity.ontology.Association;
 
-public class OntologySearcherTest extends BaseIntegrationTest {
+public interface AssociationRepository extends MongoRepository<Association, String> {
 	
-	static private Logger log = LoggerFactory.getLogger(OntologySearcherTest.class);
+	List<Association> findByKey(String key);
 	
-	@Autowired
-	OntologySearcher searcher;
-	
-    @Test
-    @DisplayName("'getExtendedKeywords' should find something")
-    public void testSearch() throws MetadataRepositoryException {
-    	
-    	Set<String> keywords = searcher.getExtendedKeywords("disease");
-    	
-    	if (keywords.size() <= 1)
-    		fail();
-    }
+	int countByKey(String key);
 }

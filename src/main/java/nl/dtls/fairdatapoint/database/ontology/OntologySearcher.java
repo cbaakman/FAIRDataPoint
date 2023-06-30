@@ -50,6 +50,8 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import javax.annotation.PostConstruct;
+
 import org.apache.commons.io.FileUtils;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
@@ -81,7 +83,13 @@ import org.semanticweb.owlapi.vocab.OWLRDFVocabulary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Example;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
+
+import nl.dtls.fairdatapoint.database.mongo.repository.AssociationRepository;
+import nl.dtls.fairdatapoint.entity.ontology.Association;
 
 @Service
 public class OntologySearcher {
@@ -93,50 +101,44 @@ public class OntologySearcher {
 	static private OWLDataFactory dataFactory = OWLManager.getOWLDataFactory();
 	
 	static private Logger log = LoggerFactory.getLogger(OntologySearcher.class);
-	
+
 	@Autowired
-	public OntologySearcher() {
-		
-		log.info("beginning to index all ontologies");
-		
-		indexAllOntologies();
-	}
+	AssociationRepository associationRepository;
 	
-	// keeps track of how frequent a keyword occurs in the ontologies
-	private Map<String, Integer> keywordCount = new HashMap<String, Integer>();
-	
-	private void incrementKeywordCount(String keyword) {
+	@PostConstruct
+	private void init() {
 		
-		if (keywordCount.containsKey(keyword))
+		if (associationRepository.count() == 0) {
 			
-			keywordCount.put(keyword, keywordCount.get(keyword) + 1);
-		else
-			keywordCount.put(keyword, 1);
+			indexAllOntologies();
+		}
 	}
 	
-	// keeps track of keywords that occur together
-	private Map<String, List<String>> associations = new HashMap<String, List<String>>();
-	
-	private List<String> getAssociations(String key) {
+	private List<Association> getAssociations(String key) {
 				
-		if (associations.containsKey(key))
-			return associations.get(key);
-		else
-			return new ArrayList<String>();
+		return associationRepository.findByKey(key);
 	}
 	
 	private void associate(String key, String value) {
 		
-		if (!associations.containsKey(key))
-			associations.put(key, new ArrayList<String>());
+		Association association = new Association();
+		association.setKey(key);
+		association.setValue(value);
 		
-		associations.get(key).add(value);
+		associationRepository.insert(association);
 	}
 	
 	// The higher this value, the more up front
 	public double getKeywordRankingScore(String keyword) {
 		
-		return 1.0 / keywordCount.get(keyword);
+		Association association = new Association();
+		association.setKey(keyword);
+		
+		Example<Association> example = Example.of(association);
+		
+		long count = associationRepository.count(example);
+		
+		return 1.0 / count;
 	}
 	
 	private static File getCacheDirectory() throws IOException {
@@ -175,7 +177,8 @@ public class OntologySearcher {
 	}
 
 	public void indexAllOntologies() {
-		
+
+		log.info("beginning to index all ontologies");
 		try {
 			OWLOntology thesaurus = fetchThesaurus();
 			log.info("finished loading the thesaurus ontology");
@@ -216,13 +219,8 @@ public class OntologySearcher {
 				if (optionalText.isPresent()) {
 					
 					for (String key : getKeywordsFromString(optionalText.get())) {
-					
-						incrementKeywordCount(key);
-
-						if (annotation.getProperty().isLabel()) {
 						
-							linkKeyToAnnotations(key, annotations);
-						}
+						linkKeyToAnnotations(key, annotations);
 					}
 				}
 			}
@@ -319,7 +317,10 @@ public class OntologySearcher {
 		for (String key : getKeywordsFromString(input))
 		{
 			keys.add(key);
-			keys.addAll(getAssociations(key));
+			
+			for (Association association : getAssociations(key)) {
+				keys.add(association.getValue());
+			}
 		}
 		
 		return keys;
