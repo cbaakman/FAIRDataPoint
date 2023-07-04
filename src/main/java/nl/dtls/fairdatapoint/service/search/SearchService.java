@@ -121,9 +121,9 @@ public class SearchService {
     		
     		public int compare(SearchResult r1, SearchResult r2) {
     			
-    			if (resultScores.get(r1) < resultScores.get(r2))
+    			if (resultScores.get(r1) > resultScores.get(r2))
     				return -1;
-    			else if (resultScores.get(r1) > resultScores.get(r2))
+    			else if (resultScores.get(r1) < resultScores.get(r2))
     				return 1;
     			else
     				return 0;

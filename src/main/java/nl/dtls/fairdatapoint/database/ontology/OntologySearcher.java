@@ -119,15 +119,6 @@ public class OntologySearcher {
 		return associationRepository.findByKey(key);
 	}
 	
-	private void associate(String key, String value) {
-		
-		Association association = new Association();
-		association.setKey(key);
-		association.setValue(value);
-		
-		associationRepository.insert(association);
-	}
-	
 	// The higher this value, the more up front
 	public double getKeywordRankingScore(String keyword) {
 		
@@ -196,56 +187,64 @@ public class OntologySearcher {
 	
 	private void indexOntology(OWLOntology ontology) {
 		
+		List<Association> associations = new ArrayList<Association>();
+		
 		for (OWLClass cls : ontology.getClassesInSignature()) {
 			
-			indexClassAnnotations(ontology, cls);
+			Set<String> words = getClassWords(ontology, cls);
+			
+			log.debug("{} has {} words", cls, words.size());
+			
+			associations.addAll(makeWordAssociations(words));
 		}
+		
+		associationRepository.insert(associations);
 	}
 	
-	private void indexClassAnnotations(OWLOntology ontology, OWLClass cls) {
+	private Set<String> getClassWords(OWLOntology ontology, OWLClass cls) {
 		
+		Set<String> words = new HashSet<String>();
 		
 		Collection<OWLAnnotation> annotations =  EntitySearcher.getAnnotations(cls, ontology)
 												 .collect(Collectors.toCollection(LinkedHashSet::new));
 		
 		for (OWLAnnotation annotation : annotations) {
-				
-			Optional<OWLLiteral> optionalLiteral = annotation.getValue().asLiteral();
 			
-			if (optionalLiteral.isPresent()) {
+			if (annotation.getProperty().isLabel()) {
 				
-				Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
+				Optional<OWLLiteral> optionalLiteral = annotation.getValue().asLiteral();
 				
-				if (optionalText.isPresent()) {
+				if (optionalLiteral.isPresent()) {
 					
-					for (String key : getKeywordsFromString(optionalText.get())) {
+					Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
+					
+					if (optionalText.isPresent()) {
 						
-						linkKeyToAnnotations(key, annotations);
+						words.addAll(getKeywordsFromString(optionalText.get()));
 					}
 				}
 			}
 		}
+		
+		return words;	
 	}
 	
-	private void linkKeyToAnnotations(String key, Collection<OWLAnnotation> annotations) {
+	private List<Association> makeWordAssociations(Set<String> words) {
 		
-		for (OWLAnnotation annotation : annotations) {
-			
-			Optional<OWLLiteral> optionalLiteral = annotation.getValue().asLiteral();
-			
-			if (optionalLiteral.isPresent()) {
+		List<Association> associations = new ArrayList<Association>();
+		
+		for (String key : words) {
+			for (String word : words) {
 				
-				Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
+				Association association = new Association();
+				association.setKey(key);
+				association.setValue(word);
 				
-				if (optionalText.isPresent()) {
-				
-					for (String word : getKeywordsFromString(optionalText.get())) {
-						
-						associate(key, word);
-					}
-				}
+				associations.add(association);
 			}
 		}
+		
+		return associations;
 	}
 
 	static Pattern literalStringPattern = Pattern.compile("^\\\"(.*)\\\"\\^\\^xsd:string$", Pattern.CASE_INSENSITIVE);

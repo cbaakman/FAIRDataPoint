@@ -25,6 +25,7 @@ package nl.dtls.fairdatapoint.entity.ontology;
 import lombok.*;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document
@@ -37,6 +38,7 @@ public class Association {
     @Id
     private ObjectId id;
     
+    @Indexed
     private String key;
 
     private String value;
