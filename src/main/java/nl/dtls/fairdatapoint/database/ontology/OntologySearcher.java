@@ -41,6 +41,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -88,8 +89,10 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
-import nl.dtls.fairdatapoint.database.mongo.repository.AssociationRepository;
-import nl.dtls.fairdatapoint.entity.ontology.Association;
+import nl.dtls.fairdatapoint.database.mongo.repository.WordAssociationRepository;
+import nl.dtls.fairdatapoint.database.mongo.repository.WordCountRepository;
+import nl.dtls.fairdatapoint.entity.ontology.WordAssociation;
+import nl.dtls.fairdatapoint.entity.ontology.WordCount;
 
 @Service
 public class OntologySearcher {
@@ -103,7 +106,10 @@ public class OntologySearcher {
 	static private Logger log = LoggerFactory.getLogger(OntologySearcher.class);
 
 	@Autowired
-	AssociationRepository associationRepository;
+	WordAssociationRepository associationRepository;
+	
+	@Autowired
+	WordCountRepository wordCountRepository;
 	
 	@PostConstruct
 	private void init() {
@@ -114,7 +120,7 @@ public class OntologySearcher {
 		}
 	}
 	
-	private List<Association> getAssociations(String key) {
+	private List<WordAssociation> getAssociations(String key) {
 				
 		return associationRepository.findByKey(key);
 	}
@@ -122,12 +128,11 @@ public class OntologySearcher {
 	// The higher this value, the more up front
 	public double getKeywordRankingScore(String keyword) {
 		
-		Association association = new Association();
-		association.setKey(keyword);
+		WordCount key = wordCountRepository.findByWord(keyword);
+		if (key == null)
+			return 0.0;
 		
-		Example<Association> example = Example.of(association);
-		
-		long count = associationRepository.count(example);
+		long count = key.getCount();
 		
 		return 1.0 / count;
 	}
@@ -187,57 +192,100 @@ public class OntologySearcher {
 	
 	private void indexOntology(OWLOntology ontology) {
 		
-		List<Association> associations = new ArrayList<Association>();
+		List<WordAssociation> associations = new ArrayList<WordAssociation>();
+		Map<String, Long> wordCounts = new HashMap<String, Long>();
 		
 		for (OWLClass cls : ontology.getClassesInSignature()) {
 			
-			Set<String> words = getClassWords(ontology, cls);
+			Map<String, Long> newWordCounts = getClassWordCounts(ontology, cls);
 			
-			log.debug("{} has {} words", cls, words.size());
+			associations.addAll(makeWordAssociations(newWordCounts.keySet()));
 			
-			associations.addAll(makeWordAssociations(words));
+			sumWordCounts(wordCounts, newWordCounts);
 		}
 		
 		associationRepository.insert(associations);
+		insertWordCounts(wordCounts);
 	}
 	
-	private Set<String> getClassWords(OWLOntology ontology, OWLClass cls) {
+	private void insertWordCounts(Map<String, Long> wordCounts) {
 		
-		Set<String> words = new HashSet<String>();
+		List<WordCount> wcs = new ArrayList<WordCount>();
 		
-		Collection<OWLAnnotation> annotations =  EntitySearcher.getAnnotations(cls, ontology)
+		for (Entry<String, Long> wordCount : wordCounts.entrySet()) {
+			
+			long count = wordCount.getValue();
+			
+			WordCount wc = new WordCount();
+			wc.setWord(wordCount.getKey());
+			wc.setCount(count);
+			
+			wcs.add(wc);
+		}
+		
+		wordCountRepository.insert(wcs);
+	}
+	
+	private void sumWordCounts(Map<String, Long> wordCounts, Map<String, Long> newWordCounts) {
+
+		for (Entry<String, Long> newWordCount : newWordCounts.entrySet()) {
+			
+			long count = newWordCount.getValue();
+			
+			if (wordCounts.containsKey(newWordCount.getKey())) {
+				
+				count += wordCounts.get(newWordCount.getKey());
+			}
+			
+			wordCounts.put(newWordCount.getKey(), count);
+		}
+	}
+	
+	private Map<String, Long> getClassWordCounts(OWLOntology ontology, OWLClass cls) {
+		
+		Map<String, Long> wordCounts = new HashMap<String, Long>();
+		
+		OWLAnnotationProperty labelProperty = dataFactory.getRDFSLabel();
+		
+		Collection<OWLAnnotation> annotations =  EntitySearcher.getAnnotations(cls, ontology, labelProperty)
 												 .collect(Collectors.toCollection(LinkedHashSet::new));
 		
 		for (OWLAnnotation annotation : annotations) {
+				
+			Optional<OWLLiteral> optionalLiteral = annotation.getValue().asLiteral();
 			
-			if (annotation.getProperty().isLabel()) {
+			if (optionalLiteral.isPresent()) {
 				
-				Optional<OWLLiteral> optionalLiteral = annotation.getValue().asLiteral();
+				Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
 				
-				if (optionalLiteral.isPresent()) {
+				if (optionalText.isPresent()) {
 					
-					Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
-					
-					if (optionalText.isPresent()) {
+					for (String word : getKeywordsFromString(optionalText.get())) {
 						
-						words.addAll(getKeywordsFromString(optionalText.get()));
+						long count = 0;
+						if (wordCounts.containsKey(word)) {
+							count = wordCounts.get(word);
+						}
+						count ++;
+						
+						wordCounts.put(word, count);
 					}
 				}
 			}
 		}
 		
-		return words;	
+		return wordCounts;	
 	}
 	
-	private List<Association> makeWordAssociations(Set<String> words) {
+	private List<WordAssociation> makeWordAssociations(Set<String> words) {
 		
-		List<Association> associations = new ArrayList<Association>();
+		List<WordAssociation> associations = new ArrayList<WordAssociation>();
 		
-		for (String key : words) {
+		for (String keyword : words) {
 			for (String word : words) {
 				
-				Association association = new Association();
-				association.setKey(key);
+				WordAssociation association = new WordAssociation();
+				association.setKey(keyword);
 				association.setValue(word);
 				
 				associations.add(association);
@@ -317,7 +365,7 @@ public class OntologySearcher {
 		{
 			keys.add(key);
 			
-			for (Association association : getAssociations(key)) {
+			for (WordAssociation association : getAssociations(key)) {
 				keys.add(association.getValue());
 			}
 		}

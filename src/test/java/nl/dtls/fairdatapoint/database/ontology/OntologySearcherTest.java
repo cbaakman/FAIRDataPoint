@@ -55,14 +55,18 @@ public class OntologySearcherTest extends BaseIntegrationTest {
     	
     	Set<String> keywords = searcher.getExtendedKeywords("disease");
     	
+		log.debug("got {} associated keywords", keywords.size());
+    	
     	if (keywords.size() <= 1)
     		fail();
     	
     	// test the scoring of keywords
+    	double score = 0.0;
     	for (String keyword : keywords) {
-    		double score = searcher.getKeywordRankingScore(keyword);
-    		
-    		log.debug("got score {} for {}", score, keyword);
+    		score += searcher.getKeywordRankingScore(keyword);
     	}
+
+    	if (score <= 0.0)
+    		fail();
     }
 }
