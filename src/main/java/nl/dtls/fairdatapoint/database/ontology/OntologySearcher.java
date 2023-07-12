@@ -342,7 +342,7 @@ public class OntologySearcher {
 
 	private List<String> getStopWords() {
 		
-		URL resourceURL = OntologySearcher.class.getResource("/english-stopwords.txt");
+		URL resourceURL = OntologySearcher.class.getResource("../../../../../english-stopwords.txt");
 		if (resourceURL == null) {
 			throw new NullPointerException("Got a null pointer while accessing resource: english-stopwords.txt");
 		}
