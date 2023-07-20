@@ -20,15 +20,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package nl.dtls.fairdatapoint.database.mongo.repository;
+package nl.dtls.fairdatapoint.database.ontology;
 
-import java.util.List;
+import java.util.Objects;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
-
-import nl.dtls.fairdatapoint.entity.ontology.WordCount;
-
-public interface WordCountRepository extends MongoRepository<WordCount, String> {
+public class Pair<T1, T2> {
 	
-	WordCount findByWord(String word);
+	private T1 a1;
+	private T2 a2;
+
+	public Pair(T1 a1, T2 a2) {
+		
+		this.a1 = a1;
+		this.a2 = a2;
+	}
+	
+	@Override
+    public int hashCode() {
+    	return Objects.hash(a1) * Objects.hash(a2);
+    }
 }

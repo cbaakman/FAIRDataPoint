@@ -30,6 +30,7 @@ import nl.dtls.fairdatapoint.database.rdf.repository.exception.MetadataRepositor
 import nl.dtls.fairdatapoint.database.rdf.repository.generic.GenericMetadataRepository;
 import nl.dtls.fairdatapoint.entity.exception.ResourceNotFoundException;
 import nl.dtls.fairdatapoint.entity.metadata.MetadataState;
+import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
 import nl.dtls.fairdatapoint.entity.search.SearchFilterCacheContainer;
 import nl.dtls.fairdatapoint.entity.search.SearchFilterType;
 import nl.dtls.fairdatapoint.entity.search.SearchFilterValue;
@@ -97,20 +98,19 @@ public class SearchService {
 
     public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
     	
-    	Set<String> extendedKeywords = ontologySearcher.getExtendedKeywords(reqDto.getQuery());
+    	List<TermAssociation> associations = ontologySearcher.getAssociations(reqDto.getQuery());
     	
     	final Map<SearchResult, Double> resultScores = new HashMap<SearchResult, Double>();
-    	for (String keyword : extendedKeywords) {
+    	for (TermAssociation association : associations) {
     		
-    		for (SearchResult result : metadataRepository.findByLiteral(l(keyword))) {
+    		for (SearchResult result : metadataRepository.findByLiteral(l(association.getValue()))) {
     			
-    			double score = 0.0;
+    			double score = association.getScore();
     			if (resultScores.containsKey(result)) {
     				
-    				score = resultScores.get(result);
+    				// add on scores per result
+    				score += resultScores.get(result);
     			}
-    			
-    			score += ontologySearcher.getKeywordRankingScore(keyword);
     			
 				resultScores.put(result, score);
     		}

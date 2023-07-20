@@ -24,24 +24,26 @@ package nl.dtls.fairdatapoint.database.ontology;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.fail;
 
-import java.net.URL;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.Date;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
 
 import nl.dtls.fairdatapoint.BaseIntegrationTest;
-import nl.dtls.fairdatapoint.WebIntegrationTest;
 import nl.dtls.fairdatapoint.database.rdf.repository.exception.MetadataRepositoryException;
+import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
 
+@TestInstance(Lifecycle.PER_CLASS)
 public class OntologySearcherTest extends BaseIntegrationTest {
 	
 	static private Logger log = LoggerFactory.getLogger(OntologySearcherTest.class);
@@ -49,30 +51,44 @@ public class OntologySearcherTest extends BaseIntegrationTest {
 	@Autowired
 	OntologySearcher searcher;
 	
+	@BeforeAll
+	public void setup() {
+		searcher.indexAllOntologies();
+	}
+	
+	@AfterAll
+	public void teardown() {
+		searcher.clearAllIndexes();
+	}
+	
     @Test
-    @DisplayName("'getExtendedKeywords' should find something")
+    @DisplayName("'OntologySearcher' should find additional terms and score them above zero")
     public void testSearch() throws MetadataRepositoryException {
     	
-    	Set<String> keywords = searcher.getExtendedKeywords("disease");
+    	long t0 = System.currentTimeMillis();
     	
-		log.debug("got {} associated keywords", keywords.size());
+    	List<TermAssociation> associations = searcher.getAssociations("disease");
     	
-    	if (keywords.size() <= 1)
-    		fail();
+    	long t1 = System.currentTimeMillis();
+    	double dt = ((double)(t1 - t0)) / 1000;
+    	
+    	// Must respond in less than a minute.
+    	assertThat(dt < 60.0); 
+    	
+		log.debug("got {} associations", associations.size());
+    	
+    	assertThat(associations.size() > 1);
     	
     	// test the scoring of keywords
     	double totalScore = 0.0;
-    	for (String keyword : keywords) {
-    		if (!"disease".equals(keyword)) {
+    	for (TermAssociation association : associations) {
+    		if (!"disease".equals(association.getValue())) {
     			
-    			double wordScore = searcher.getKeywordRankingScore(keyword);
-    			
-    			log.debug("{} has score {}", keyword, wordScore);
-    			totalScore += wordScore;
+    			log.debug("{} has score {}", association.getValue(), association.getScore());
+    			totalScore += association.getScore();
     		}
     	}
 
-    	if (totalScore <= 0.0)
-    		fail();
+    	assertThat(totalScore > 0.0);
     }
 }

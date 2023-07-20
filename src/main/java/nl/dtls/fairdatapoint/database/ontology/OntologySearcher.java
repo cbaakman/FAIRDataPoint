@@ -22,77 +22,47 @@
  */
 package nl.dtls.fairdatapoint.database.ontology;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import javax.annotation.PostConstruct;
 
 import org.apache.commons.io.FileUtils;
-import org.eclipse.rdf4j.model.vocabulary.RDF;
-import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.semanticweb.owlapi.apibinding.OWLManager;
-import org.semanticweb.owlapi.model.IRI;
 import org.semanticweb.owlapi.model.OWLAnnotation;
 import org.semanticweb.owlapi.model.OWLAnnotationProperty;
-import org.semanticweb.owlapi.model.OWLAnnotationValue;
-import org.semanticweb.owlapi.model.OWLAnonymousIndividual;
-import org.semanticweb.owlapi.model.OWLAxiom;
 import org.semanticweb.owlapi.model.OWLClass;
-import org.semanticweb.owlapi.model.OWLClassExpression;
 import org.semanticweb.owlapi.model.OWLDataFactory;
-import org.semanticweb.owlapi.model.OWLDataProperty;
-import org.semanticweb.owlapi.model.OWLEntity;
-import org.semanticweb.owlapi.model.OWLImportsDeclaration;
-import org.semanticweb.owlapi.model.OWLIndividual;
 import org.semanticweb.owlapi.model.OWLLiteral;
-import org.semanticweb.owlapi.model.OWLNamedIndividual;
-import org.semanticweb.owlapi.model.OWLObject;
-import org.semanticweb.owlapi.model.OWLObjectProperty;
 import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
-import org.semanticweb.owlapi.reasoner.NodeSet;
 import org.semanticweb.owlapi.search.EntitySearcher;
-import org.semanticweb.owlapi.util.SimpleIRIMapper;
-import org.semanticweb.owlapi.vocab.OWLRDFVocabulary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Example;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
-import nl.dtls.fairdatapoint.database.mongo.repository.WordAssociationRepository;
-import nl.dtls.fairdatapoint.database.mongo.repository.WordCountRepository;
-import nl.dtls.fairdatapoint.entity.ontology.WordAssociation;
-import nl.dtls.fairdatapoint.entity.ontology.WordCount;
+import nl.dtls.fairdatapoint.database.mongo.repository.TermAssociationRepository;
+import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
 
 @Service
 public class OntologySearcher {
@@ -106,10 +76,7 @@ public class OntologySearcher {
 	static private Logger log = LoggerFactory.getLogger(OntologySearcher.class);
 
 	@Autowired
-	WordAssociationRepository associationRepository;
-	
-	@Autowired
-	WordCountRepository wordCountRepository;
+	TermAssociationRepository associationRepository;
 	
 	@PostConstruct
 	private void init() {
@@ -118,23 +85,6 @@ public class OntologySearcher {
 			
 			indexAllOntologies();
 		}
-	}
-	
-	private List<WordAssociation> getAssociations(String key) {
-				
-		return associationRepository.findByKey(key);
-	}
-	
-	// The higher this value, the more up front
-	public double getKeywordRankingScore(String keyword) {
-		
-		WordCount key = wordCountRepository.findByWord(keyword);
-		if (key == null)
-			return 0.0;
-		
-		long count = key.getCount();
-		
-		return 1.0 / count;
 	}
 	
 	private static File getCacheDirectory() throws IOException {
@@ -171,79 +121,136 @@ public class OntologySearcher {
 		
 		return ontologyManager.loadOntologyFromOntologyDocument(zipInput);
 	}
+	
+	public void clearAllIndexes() {
+		
+		log.info("clearing all indexes");
+		
+		associationRepository.deleteAll();
+	}
 
 	public void indexAllOntologies() {
+		
+		List<OWLOntology> ontologies = new ArrayList<OWLOntology>();
 
 		log.info("beginning to index all ontologies");
 		try {
 			OWLOntology thesaurus = fetchThesaurus();
 			log.info("finished loading the thesaurus ontology");
 			
-			indexOntology(thesaurus);
-			log.info("finished indexing the thesaurus ontology");
-			
+			ontologies.add(thesaurus);
 		} catch (IOException e) {
 			log.error("I/O exception on indexing thesaurus: {}", e);
 			
 		} catch (OWLOntologyCreationException e) {
 			log.error("ontology exception on indexing thesaurus: {}", e);
 		}
+		
+		indexOntologies(ontologies);
 	}
 	
-	private void indexOntology(OWLOntology ontology) {
-		
-		List<WordAssociation> associations = new ArrayList<WordAssociation>();
-		Map<String, Long> wordCounts = new HashMap<String, Long>();
-		
-		for (OWLClass cls : ontology.getClassesInSignature()) {
-			
-			Map<String, Long> newWordCounts = getClassWordCounts(ontology, cls);
-			
-			associations.addAll(makeWordAssociations(newWordCounts.keySet()));
-			
-			sumWordCounts(wordCounts, newWordCounts);
-		}
-		
-		associationRepository.insert(associations);
-		insertWordCounts(wordCounts);
-	}
-	
-	private void insertWordCounts(Map<String, Long> wordCounts) {
-		
-		List<WordCount> wcs = new ArrayList<WordCount>();
-		
-		for (Entry<String, Long> wordCount : wordCounts.entrySet()) {
-			
-			long count = wordCount.getValue();
-			
-			WordCount wc = new WordCount();
-			wc.setWord(wordCount.getKey());
-			wc.setCount(count);
-			
-			wcs.add(wc);
-		}
-		
-		wordCountRepository.insert(wcs);
-	}
-	
-	private void sumWordCounts(Map<String, Long> wordCounts, Map<String, Long> newWordCounts) {
+	private void indexOntologies(List<OWLOntology> ontologies) {
 
-		for (Entry<String, Long> newWordCount : newWordCounts.entrySet()) {
+		log.debug("counting terms in classes");
+		
+		Map<Pair<OWLClass, String>, Long> countTermPerClass = new HashMap<Pair<OWLClass, String>, Long>();
+		Map<OWLClass, Long> countTotalTermsPerClass = new HashMap<OWLClass, Long>();
+		long countClasses = 0L;
+		Map<String, Set<OWLClass>> classesWhereTermAppears = new HashMap<String, Set<OWLClass>>();
+		Map<OWLClass, Set<String>> termsInClasses = new HashMap<OWLClass, Set<String>>();
+		
+		for (OWLOntology ontology : ontologies) {
 			
-			long count = newWordCount.getValue();
-			
-			if (wordCounts.containsKey(newWordCount.getKey())) {
+			for (OWLClass cls : ontology.getClassesInSignature()) {
 				
-				count += wordCounts.get(newWordCount.getKey());
+				List<String> terms = getTermsInClass(ontology, cls);
+				
+				Set<String> uniqueTermsInClass = new HashSet<String>();
+				
+				for (String term : terms) {
+					
+					// count frequency of term in class
+					Pair<OWLClass, String> combo = new Pair<OWLClass, String>(cls, term);
+					if (countTermPerClass.containsKey(combo))
+						countTermPerClass.put(combo, 1 + countTermPerClass.get(combo));
+					else
+						countTermPerClass.put(combo, 1L);
+					
+					uniqueTermsInClass.add(term);
+				}
+				
+				for (String term : uniqueTermsInClass) {
+					
+					// count classes where term appears
+					if (!classesWhereTermAppears.containsKey(term))
+						classesWhereTermAppears.put(term, new HashSet<OWLClass>());
+					
+					classesWhereTermAppears.get(term).add(cls);
+				}
+				
+				// count total terms in class
+				countTotalTermsPerClass.put(cls, (long)terms.size());
+				
+				// count number of classes
+				countClasses ++;
+				
+				// make associations
+				termsInClasses.put(cls, uniqueTermsInClass);
 			}
-			
-			wordCounts.put(newWordCount.getKey(), count);
 		}
+		
+		log.debug("calculating tf-idf for all terms");
+		
+		List<TermAssociation> associations = new ArrayList<TermAssociation>();
+		
+		// calculate tf-idf
+		for (String termWord : classesWhereTermAppears.keySet()) {
+			
+			// calculate idf for class
+			double idf = Math.log((double)(countClasses)/classesWhereTermAppears.get(termWord).size());
+			
+			// calculate tf for term in class
+			for (OWLClass cls : classesWhereTermAppears.get(termWord)) {
+			
+				Pair<OWLClass, String> combo = new Pair<OWLClass, String>(cls, termWord);
+				
+				double tf = 0.0;
+				if (countTermPerClass.containsKey(combo)) 
+					tf = (double)(countTermPerClass.get(combo)) / countTotalTermsPerClass.get(cls);
+				
+				// score for this class, on this term
+				double tfidf = tf * idf;
+				
+				// make the associations
+				Set<String> classTerms = termsInClasses.get(cls);
+
+				for (String classTerm : classTerms) {
+					
+					TermAssociation association = new TermAssociation();
+					association.setKey(termWord);
+					association.setValue(classTerm);
+					association.setScore(tfidf);
+					
+					associations.add(association);
+					if (associations.size() >= ASSOCIATION_BUFFER_SIZE) {
+						
+						// too much data in RAM, flush to mongo
+						associationRepository.insert(associations);
+						associations.clear();
+					}
+				}
+			}
+		}
+		associationRepository.insert(associations);
+		
+		log.debug("finished indexing ontologies");
 	}
 	
-	private Map<String, Long> getClassWordCounts(OWLOntology ontology, OWLClass cls) {
+	private static long ASSOCIATION_BUFFER_SIZE = 10000000;
+	
+	private List<String> getTermsInClass(OWLOntology ontology, OWLClass cls) {
 		
-		Map<String, Long> wordCounts = new HashMap<String, Long>();
+		List<String> terms = new ArrayList<String>();
 		
 		OWLAnnotationProperty labelProperty = dataFactory.getRDFSLabel();
 		
@@ -262,39 +269,15 @@ public class OntologySearcher {
 					
 					for (String word : getKeywordsFromString(optionalText.get())) {
 						
-						long count = 0;
-						if (wordCounts.containsKey(word)) {
-							count = wordCounts.get(word);
-						}
-						count ++;
-						
-						wordCounts.put(word, count);
+						terms.add(word);
 					}
 				}
 			}
 		}
 		
-		return wordCounts;	
+		return terms;	
 	}
 	
-	private List<WordAssociation> makeWordAssociations(Set<String> words) {
-		
-		List<WordAssociation> associations = new ArrayList<WordAssociation>();
-		
-		for (String keyword : words) {
-			for (String word : words) {
-				
-				WordAssociation association = new WordAssociation();
-				association.setKey(keyword);
-				association.setValue(word);
-				
-				associations.add(association);
-			}
-		}
-		
-		return associations;
-	}
-
 	static Pattern literalStringPattern = Pattern.compile("^\\\"(.*)\\\"\\^\\^xsd:string$", Pattern.CASE_INSENSITIVE);
 	
 	private static Optional<String> getStringFromLiteral(OWLLiteral literal) {
@@ -357,19 +340,16 @@ public class OntologySearcher {
 		}
 	}
 	
-	public Set<String> getExtendedKeywords(String input) {
+	public List<TermAssociation> getAssociations(String input) {
 		
-		Set<String> keys = new HashSet<String>();
+		List<TermAssociation> associations = new ArrayList<TermAssociation>();
 		
-		for (String key : getKeywordsFromString(input))
-		{
-			keys.add(key);
-			
-			for (WordAssociation association : getAssociations(key)) {
-				keys.add(association.getValue());
-			}
+		for (String key : getKeywordsFromString(input)) {
+			associations.addAll(associationRepository.findByKey(key));
 		}
 		
-		return keys;
+		log.debug("found {} associations for \"{}\"", associations.size(), input);
+		
+		return associations;
 	}
 }

@@ -20,26 +20,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package nl.dtls.fairdatapoint.entity.ontology;
+package nl.dtls.fairdatapoint.database.mongo.repository;
 
-import lombok.*;
-import org.bson.types.ObjectId;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+import java.util.List;
 
-@Document(collection="wordCounts")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-public class WordCount {
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-    @Id
-    private ObjectId id;
-    
-    @Indexed
-    private String word;
-    
-    private long count;
+import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
+
+public interface TermAssociationRepository extends MongoRepository<TermAssociation, String> {
+	
+	List<TermAssociation> findByKey(String key);
 }
