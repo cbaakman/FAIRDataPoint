@@ -53,6 +53,7 @@ import static java.util.Optional.ofNullable;
 public abstract class AbstractMetadataRepository {
 
     private static final String FIND_ENTITY_BY_LITERAL = "findEntityByLiteral.sparql";
+    private static final String FIND_ALL_ENTITIES = "findAllEntities.sparql";
     private static final String FIND_CHILD_TITLES = "findChildTitles.sparql";
     private static final String FIND_OBJECT_FOR_PREDICATE = "findObjectsForPredicate.sparql";
 
@@ -102,6 +103,15 @@ public abstract class AbstractMetadataRepository {
         catch (RepositoryException exception) {
             throw new MetadataRepositoryException(MSG_ERROR_RESOURCE + exception.getMessage());
         }
+    }
+    
+    public int countTotal() throws MetadataRepositoryException {
+    	
+    	return runSparqlQuery(
+                FIND_ALL_ENTITIES,
+                AbstractMetadataRepository.class,
+                new HashMap<String, Value>()
+        ).size();
     }
 
     public List<SearchResult> findByLiteral(Literal query) throws MetadataRepositoryException {

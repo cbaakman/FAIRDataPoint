@@ -78,17 +78,5 @@ public class OntologySearcherTest extends BaseIntegrationTest {
 		log.debug("got {} associations", associations.size());
     	
     	assertThat(associations.size() > 1);
-    	
-    	// test the scoring of keywords
-    	double totalScore = 0.0;
-    	for (TermAssociation association : associations) {
-    		if (!"disease".equals(association.getValue())) {
-    			
-    			log.debug("{} has score {}", association.getValue(), association.getScore());
-    			totalScore += association.getScore();
-    		}
-    	}
-
-    	assertThat(totalScore > 0.0);
     }
 }

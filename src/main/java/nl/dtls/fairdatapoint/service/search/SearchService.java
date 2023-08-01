@@ -96,27 +96,22 @@ public class SearchService {
     
 	static private Logger log = LoggerFactory.getLogger(SearchService.class);
 
-    public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
-    	
-    	List<TermAssociation> associations = ontologySearcher.getAssociations(reqDto.getQuery());
-    	
-    	final Map<SearchResult, Double> resultScores = new HashMap<SearchResult, Double>();
-    	for (TermAssociation association : associations) {
+    private int countWordOccurenceIn(SearchResult result, String searchWord) {
+    	int count = 0;
+    	for (String word : ontologySearcher.getKeywordsFromString(result.getTitle() + result.getDescription())) {
     		
-    		for (SearchResult result : metadataRepository.findByLiteral(l(association.getValue()))) {
-    			
-    			double score = association.getScore();
-    			if (resultScores.containsKey(result)) {
-    				
-    				// add on scores per result
-    				score += resultScores.get(result);
-    			}
-    			
-				resultScores.put(result, score);
-    		}
+    		if (word.equals(searchWord))
+    			count ++;
     	}
-    	
-    	List<SearchResult> results = new ArrayList<SearchResult>(resultScores.keySet());
+    	return count;
+	}
+
+	private int countWordsIn(SearchResult result) {
+    	return ontologySearcher.getKeywordsFromString(result.getTitle() + result.getDescription()).size();
+	}
+	
+	private void sortByScores(List<SearchResult> results, final Map<SearchResult, Double> resultScores) {
+
     	Collections.sort(results, new Comparator<SearchResult>() {
     		
     		public int compare(SearchResult r1, SearchResult r2) {
@@ -129,11 +124,43 @@ public class SearchService {
     				return 0;
     		}
     	});
+	}
+
+    public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
+    	
+    	int total = metadataRepository.countTotal();
+    	
+    	List<TermAssociation> associations = ontologySearcher.getAssociations(reqDto.getQuery());
+    	
+    	// Find associated keywords and score the results
+    	Map<SearchResult, Double> resultScores = new HashMap<SearchResult, Double>();
+    	for (TermAssociation association : associations) {
+    		
+    		String word = association.getValue();
+    		
+    		List<SearchResult> results = metadataRepository.findByLiteral(l(word));
+    		
+    		double idf = Math.log(((double)total) / results.size());
+    		
+    		for (SearchResult result : results) {
+    			
+    			int resultWordCount = countWordsIn(result),
+    				resultMatchCount = countWordOccurenceIn(result, word);
+    			
+    			double tf = ((double)resultMatchCount) / resultWordCount;
+    			
+				resultScores.put(result, tf * idf);
+    		}
+    	}
+    	
+    	// sort by the scores we calculated earlier
+    	List<SearchResult> results = new ArrayList<SearchResult>(resultScores.keySet());
+    	sortByScores(results, resultScores);
     	
         return processSearchResults(results);
     }
 
-    public List<SearchResultDTO> search(
+	public List<SearchResultDTO> search(
             SearchQueryVariablesDTO reqDto
     ) throws MetadataRepositoryException, MalformedQueryException {
         // Compose query

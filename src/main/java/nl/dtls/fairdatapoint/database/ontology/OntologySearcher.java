@@ -151,99 +151,37 @@ public class OntologySearcher {
 	
 	private void indexOntologies(List<OWLOntology> ontologies) {
 
-		log.debug("counting terms in classes");
+		log.debug("finding terms in classes");
 		
-		Map<Pair<OWLClass, String>, Long> countTermPerClass = new HashMap<Pair<OWLClass, String>, Long>();
-		Map<OWLClass, Long> countTotalTermsPerClass = new HashMap<OWLClass, Long>();
-		long countClasses = 0L;
-		Map<String, Set<OWLClass>> classesWhereTermAppears = new HashMap<String, Set<OWLClass>>();
-		Map<OWLClass, Set<String>> termsInClasses = new HashMap<OWLClass, Set<String>>();
+		List<TermAssociation> associations = new ArrayList<TermAssociation>();
 		
 		for (OWLOntology ontology : ontologies) {
 			
 			for (OWLClass cls : ontology.getClassesInSignature()) {
 				
+				// get terms in class
 				List<String> terms = getTermsInClass(ontology, cls);
 				
-				Set<String> uniqueTermsInClass = new HashSet<String>();
+				// convert to unique set
+				Set<String> uniqueTermsInClass = new HashSet<String>(terms);
 				
-				for (String term : terms) {
-					
-					// count frequency of term in class
-					Pair<OWLClass, String> combo = new Pair<OWLClass, String>(cls, term);
-					if (countTermPerClass.containsKey(combo))
-						countTermPerClass.put(combo, 1 + countTermPerClass.get(combo));
-					else
-						countTermPerClass.put(combo, 1L);
-					
-					uniqueTermsInClass.add(term);
-				}
-				
-				for (String term : uniqueTermsInClass) {
-					
-					// count classes where term appears
-					if (!classesWhereTermAppears.containsKey(term))
-						classesWhereTermAppears.put(term, new HashSet<OWLClass>());
-					
-					classesWhereTermAppears.get(term).add(cls);
-				}
-				
-				// count total terms in class
-				countTotalTermsPerClass.put(cls, (long)terms.size());
-				
-				// count number of classes
-				countClasses ++;
-				
-				// make associations
-				termsInClasses.put(cls, uniqueTermsInClass);
-			}
-		}
-		
-		log.debug("calculating tf-idf for all terms");
-		
-		List<TermAssociation> associations = new ArrayList<TermAssociation>();
-		
-		// calculate tf-idf
-		for (String termWord : classesWhereTermAppears.keySet()) {
-			
-			// calculate idf for class
-			double idf = Math.log((double)(countClasses)/classesWhereTermAppears.get(termWord).size());
-			
-			// calculate tf for term in class
-			for (OWLClass cls : classesWhereTermAppears.get(termWord)) {
-			
-				Pair<OWLClass, String> combo = new Pair<OWLClass, String>(cls, termWord);
-				
-				double tf = 0.0;
-				if (countTermPerClass.containsKey(combo)) 
-					tf = (double)(countTermPerClass.get(combo)) / countTotalTermsPerClass.get(cls);
-				
-				// score for this class, on this term
-				double tfidf = tf * idf;
-				
-				// make the associations
-				Set<String> classTerms = termsInClasses.get(cls);
+				// associate words with each other
+				for (String term1 : uniqueTermsInClass) {
+					for (String term2 : uniqueTermsInClass) {
 
-				for (String classTerm : classTerms) {
-					
-					TermAssociation association = new TermAssociation();
-					association.setKey(termWord);
-					association.setValue(classTerm);
-					association.setScore(tfidf);
-					
-					associations.add(association);
-					if (associations.size() >= ASSOCIATION_BUFFER_SIZE) {
-						
-						// too much data in RAM, flush to mongo
-						associationRepository.insert(associations);
-						associations.clear();
+						TermAssociation association = new TermAssociation();
+						association.setKey(term1);
+						association.setValue(term2);
+
+						associations.add(association);
 					}
 				}
 			}
 		}
-		associationRepository.insert(associations);
 		
-		log.debug("finished indexing ontologies");
+		log.debug("storing associations");
+		
+		associationRepository.insert(associations);
 	}
 	
 	private static long ASSOCIATION_BUFFER_SIZE = 10000000;
@@ -294,7 +232,7 @@ public class OntologySearcher {
 		}
 	}
 
-	private List<String> getKeywordsFromString(String input) {
+	public List<String> getKeywordsFromString(String input) {
 		
 		List<String> result = new ArrayList<String>();
 		

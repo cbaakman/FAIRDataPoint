@@ -42,6 +42,4 @@ public class TermAssociation {
     private String key;
     
     private String value;
-    
-    private double score;
 }

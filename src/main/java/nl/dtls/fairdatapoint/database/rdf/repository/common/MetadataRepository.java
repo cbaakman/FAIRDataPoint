@@ -41,6 +41,8 @@ public interface MetadataRepository {
     List<Resource> findResources() throws MetadataRepositoryException;
 
     List<Statement> find(IRI context) throws MetadataRepositoryException;
+    
+    int countTotal() throws MetadataRepositoryException;
 
     List<SearchResult> findByLiteral(Literal query) throws MetadataRepositoryException;
 
