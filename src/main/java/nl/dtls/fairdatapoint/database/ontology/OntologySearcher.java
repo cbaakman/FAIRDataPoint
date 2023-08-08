@@ -22,10 +22,12 @@
  */
 package nl.dtls.fairdatapoint.database.ontology;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -263,19 +265,24 @@ public class OntologySearcher {
 
 	private List<String> getStopWords() {
 		
-		URL resourceURL = OntologySearcher.class.getResource("../../../../../english-stopwords.txt");
-		if (resourceURL == null) {
-			throw new NullPointerException("Got a null pointer while accessing resource: english-stopwords.txt");
-		}
+		InputStream input = OntologySearcher.class.getResourceAsStream("english-stopwords.txt");
 		
-		Path path = Path.of(resourceURL.getPath());
+		BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+		
+		List<String> lines = new ArrayList<String>();
+		String line;
 		
 		try {
-			return Files.readAllLines(path);
+			while ((line = reader.readLine()) != null) {
+				lines.add(line);
+			}
+			reader.close();
 			
 		} catch (IOException e) {
 			throw new RuntimeException("Cannot read from english-stopwords.txt: " + e);
 		}
+
+		return lines;
 	}
 	
 	public List<TermAssociation> getAssociations(String input) {
