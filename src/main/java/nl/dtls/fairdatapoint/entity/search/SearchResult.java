@@ -42,4 +42,23 @@ public class SearchResult {
     private String description;
 
     private SearchResultRelation relation;
+    
+    @Override
+    public boolean equals(Object other) {
+    	
+    	if (other instanceof SearchResult) {
+    		
+    		SearchResult otherResult = (SearchResult)other;
+    		
+    		return uri.equals(otherResult.getUri());
+    	}
+    	
+    	return false;
+    }
+    
+    @Override
+    public int hashCode() {
+    	
+    	return uri.hashCode();
+    }
 }

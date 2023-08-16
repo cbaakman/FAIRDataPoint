@@ -91,6 +91,9 @@ public class SearchService {
     public List<SearchResultDTO> search(
             SearchSavedQueryDTO searchSavedQueryDTO
     ) throws MetadataRepositoryException {
+    	
+    	log.info("calling search on saved query {}", searchSavedQueryDTO.toString());
+    	
         return search(searchSavedQueryDTO.getVariables());
     }
     
@@ -127,31 +130,47 @@ public class SearchService {
 	}
 
     public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
+
+    	log.info("a new search was started on query {}", reqDto.getQuery());
     	
     	int total = metadataRepository.countTotal();
     	
     	List<TermAssociation> associations = ontologySearcher.getAssociations(reqDto.getQuery());
     	
+    	log.info("found {} associations", associations.size());
+    	
+    	Set<String> words = new HashSet<String>();
+    	for (TermAssociation association : associations) {
+    		words.add(association.getValue());
+    	}
+    	
+    	log.info("found {} words", words.size());
+    	
     	// Find associated keywords and score the results
     	Map<SearchResult, Double> resultScores = new HashMap<SearchResult, Double>();
-    	for (TermAssociation association : associations) {
-    		
-    		String word = association.getValue();
+    	for (String word : words) {
     		
     		List<SearchResult> results = metadataRepository.findByLiteral(l(word));
     		
-    		double idf = Math.log(((double)total) / results.size());
-    		
     		for (SearchResult result : results) {
     			
-    			int resultWordCount = countWordsIn(result),
-    				resultMatchCount = countWordOccurenceIn(result, word);
+    			if (!resultScores.containsKey(result)) {
+    	    		
+    	    		double idf = Math.log(((double)total) / results.size());
+    				
+    		    	log.info("scoring result {}", result.getTitle());
     			
-    			double tf = ((double)resultMatchCount) / resultWordCount;
-    			
-				resultScores.put(result, tf * idf);
+	    			int resultWordCount = countWordsIn(result),
+	    				resultMatchCount = countWordOccurenceIn(result, word);
+	    			
+	    			double tf = ((double)resultMatchCount) / resultWordCount;
+	    			
+					resultScores.put(result, tf * idf);
+    			}
     		}
     	}
+    	
+    	log.info("sorting results by scores");
     	
     	// sort by the scores we calculated earlier
     	List<SearchResult> results = new ArrayList<SearchResult>(resultScores.keySet());
@@ -163,8 +182,14 @@ public class SearchService {
 	public List<SearchResultDTO> search(
             SearchQueryVariablesDTO reqDto
     ) throws MetadataRepositoryException, MalformedQueryException {
+		
+    	log.info("a new search was started on variables prefix={} graph-pattern={} ordening={}", reqDto.getPrefixes(), reqDto.getGraphPattern(), reqDto.getOrdering());
+    	
         // Compose query
         final String query = composeQuery(reqDto);
+        
+        log.info("composed query \"{}\"", query);
+        
         // Verify query
         final SPARQLParser parser = new SPARQLParser();
         parser.parseQuery(query, persistentUrl);

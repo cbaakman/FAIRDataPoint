@@ -290,6 +290,12 @@ public class OntologySearcher {
 		List<TermAssociation> associations = new ArrayList<TermAssociation>();
 		
 		for (String key : getKeywordsFromString(input)) {
+
+			TermAssociation inputAssociation = new TermAssociation();
+			inputAssociation.setKey(input);
+			inputAssociation.setValue(input);
+			associations.add(inputAssociation);
+			
 			associations.addAll(associationRepository.findByKey(key));
 		}
 		
