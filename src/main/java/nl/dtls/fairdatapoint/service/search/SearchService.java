@@ -134,17 +134,15 @@ public class SearchService {
     	log.info("a new search was started on query {}", reqDto.getQuery());
     	
     	int total = metadataRepository.countTotal();
+
+    	log.info("counted a total of {} metadata repository entries", total);
     	
     	List<TermAssociation> associations = ontologySearcher.getAssociations(reqDto.getQuery());
-    	
-    	log.info("found {} associations", associations.size());
     	
     	Set<String> words = new HashSet<String>();
     	for (TermAssociation association : associations) {
     		words.add(association.getValue());
     	}
-    	
-    	log.info("found {} words", words.size());
     	
     	// Find associated keywords and score the results
     	Map<SearchResult, Double> resultScores = new HashMap<SearchResult, Double>();
@@ -152,25 +150,23 @@ public class SearchService {
     		
     		List<SearchResult> results = metadataRepository.findByLiteral(l(word));
     		
+    		double idf = Math.log(((double)total) / (results.size() + 1));
+    		
     		for (SearchResult result : results) {
+				
+		    	log.info("scoring result {}", result.getTitle());
+			
+    			int resultWordCount = countWordsIn(result),
+    				resultMatchCount = countWordOccurenceIn(result, word);
     			
-    			if (!resultScores.containsKey(result)) {
-    	    		
-    	    		double idf = Math.log(((double)total) / results.size());
-    				
-    		    	log.info("scoring result {}", result.getTitle());
+    			double tf = ((double)resultMatchCount) / resultWordCount;
     			
-	    			int resultWordCount = countWordsIn(result),
-	    				resultMatchCount = countWordOccurenceIn(result, word);
-	    			
-	    			double tf = ((double)resultMatchCount) / resultWordCount;
-	    			
+    			if (resultScores.containsKey(result))
+					resultScores.put(result, resultScores.get(result) + tf * idf);
+    			else
 					resultScores.put(result, tf * idf);
-    			}
     		}
     	}
-    	
-    	log.info("sorting results by scores");
     	
     	// sort by the scores we calculated earlier
     	List<SearchResult> results = new ArrayList<SearchResult>(resultScores.keySet());
@@ -195,6 +191,9 @@ public class SearchService {
         parser.parseQuery(query, persistentUrl);
         // Get and process results for query
         final List<SearchResult> results = metadataRepository.findBySparqlQuery(query);
+        
+        log.info("found {} search results", results.size());
+        
         return processSearchResults(results);
     }
 
