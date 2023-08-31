@@ -26,8 +26,6 @@ package nl.dtls.fairdatapoint.database.ontology;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
-import java.util.Set;
-import java.util.Date;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -35,8 +33,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import nl.dtls.fairdatapoint.BaseIntegrationTest;
@@ -45,9 +41,7 @@ import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
 
 @TestInstance(Lifecycle.PER_CLASS)
 public class OntologySearcherTest extends BaseIntegrationTest {
-	
-	static private Logger log = LoggerFactory.getLogger(OntologySearcherTest.class);
-	
+		
 	@Autowired
 	OntologySearcher searcher;
 	
@@ -74,8 +68,6 @@ public class OntologySearcherTest extends BaseIntegrationTest {
     	
     	// Must respond in less than a minute.
     	assertThat(dt < 60.0); 
-    	
-		log.debug("got {} associations", associations.size());
     	
     	assertThat(associations.size() > 1);
     }

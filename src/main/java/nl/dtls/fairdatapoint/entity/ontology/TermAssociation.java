@@ -23,6 +23,9 @@
 package nl.dtls.fairdatapoint.entity.ontology;
 
 import lombok.*;
+
+import java.util.Objects;
+
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -42,4 +45,11 @@ public class TermAssociation {
     private String key;
     
     private String value;
+    
+    private double relevance;
+    
+    @Override
+    public int hashCode() {
+    	return Objects.hash(key, value);
+    }
 }

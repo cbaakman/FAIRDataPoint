@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -85,14 +86,17 @@ public class OntologySearcher {
 		
 		if (associationRepository.count() == 0) {
 			
+			log.info("No associations detected in the repository");
+			
 			indexAllOntologies();
 		}
 	}
 	
 	private static File getCacheDirectory() throws IOException {
 		
-		File directory = new File("./fdp-ontology-cache");
+		// The OntologySearcher uses this directory to temporarily store downloaded ontology files in.
 		
+		File directory = new File("./fdp-ontology-cache");
 		if (!directory.isDirectory()) {
 			directory.mkdir();
 		}
@@ -102,8 +106,8 @@ public class OntologySearcher {
 	
 	private static OWLOntology fetchThesaurus() throws IOException, OWLOntologyCreationException {
 		
+		// Download the thesaurus owl file.
 		File cachePath = new File(getCacheDirectory(), "Thesaurus_23.05e.OWL.zip");
-		
 		if (!cachePath.isFile()) {
 
 			log.info("downloading {}", cachePath.getName());
@@ -113,6 +117,7 @@ public class OntologySearcher {
 			FileUtils.copyURLToFile(ontologyURL, cachePath);
 		}
 
+		// Parse it as an ontology.
 		log.info("parsing {}", cachePath.getName());
 		
 		InputStream input = new FileInputStream(cachePath.toString());
@@ -124,18 +129,23 @@ public class OntologySearcher {
 		return ontologyManager.loadOntologyFromOntologyDocument(zipInput);
 	}
 	
+	/**
+	 * Undoes the word of indexAllOntologies.
+	 */
 	public void clearAllIndexes() {
 		
-		log.info("clearing all indexes");
+		log.info("clearing all associations from repository");
 		
 		associationRepository.deleteAll();
 	}
 
+	/**
+	 * Fills the mongo repositories with association data, required for a fast response of the 'getAssociations' method.
+	 */
 	public void indexAllOntologies() {
 		
 		List<OWLOntology> ontologies = new ArrayList<OWLOntology>();
 
-		log.info("beginning to index all ontologies");
 		try {
 			OWLOntology thesaurus = fetchThesaurus();
 			log.info("finished loading the thesaurus ontology");
@@ -147,41 +157,76 @@ public class OntologySearcher {
 		} catch (OWLOntologyCreationException e) {
 			log.error("ontology exception on indexing thesaurus: {}", e);
 		}
-		
+
+		log.info("beginning to index all ontologies");
 		indexOntologies(ontologies);
 	}
 	
-	private void indexOntologies(List<OWLOntology> ontologies) {
+	private Map<String, Integer> countTerms(List<String> terms) {
 
-		log.debug("finding terms in classes");
+		// Fill a map, containing the count of each string within the input list.
+		Map<String, Integer> termCount = new HashMap<String, Integer>();
+		for (String term : terms) {
+			int count = 1;
+			if (termCount.containsKey(term))
+				count += termCount.get(term);
+			termCount.put(term, count);
+		}
 		
+		return termCount;
+	}
+	
+	private void indexOntologies(List<OWLOntology> ontologies) {
+		
+		// Count the frequency of the terms everywhere.
+		List<String> allTerms = new ArrayList<String>();
+		int classCount = 0;
+		for (OWLOntology ontology : ontologies)  {
+			for (OWLClass cls : ontology.getClassesInSignature()) {
+				allTerms.addAll(getTermsInClass(ontology, cls));
+				classCount ++;
+			}
+		}
+		
+		// Count for every term how often it occurs overall.
+		Map<String, Integer> termCount = countTerms(allTerms);
+
+		log.debug("finding associations from terms in classes");
 		List<TermAssociation> associations = new ArrayList<TermAssociation>();
-		
 		for (OWLOntology ontology : ontologies) {
-			
 			for (OWLClass cls : ontology.getClassesInSignature()) {
 				
 				// get terms in class
-				List<String> terms = getTermsInClass(ontology, cls);
+				List<String> termsInClass = getTermsInClass(ontology, cls);
+				int totalClassTermCount = termsInClass.size();
 				
-				// convert to unique set
-				Set<String> uniqueTermsInClass = new HashSet<String>(terms);
+				// count the term frequency within the class
+				Map<String, Integer> termCountInClass = countTerms(termsInClass);
 				
-				// associate words with each other
-				for (String term1 : uniqueTermsInClass) {
-					for (String term2 : uniqueTermsInClass) {
-
+				// See which words are together in this class.
+				for (String term1 : termCountInClass.keySet()) {
+					for (String term2 : termCountInClass.keySet()) {
+						
+						// Calculate the relevance for the association.
+						double idf1 = Math.log((double)classCount / termCount.get(term1)),
+							   idf2 = Math.log((double)classCount / termCount.get(term2)),
+							   tf1 = (double)termCountInClass.get(term1) / totalClassTermCount,
+							   tf2 = (double)termCountInClass.get(term2) / totalClassTermCount,
+							   
+							   relevance = tf1 * idf1 * tf2 * idf2;
+						
 						TermAssociation association = new TermAssociation();
 						association.setKey(term1);
 						association.setValue(term2);
-
+						association.setRelevance(relevance);
+						
 						associations.add(association);
 					}
 				}
 			}
 		}
 		
-		log.debug("storing associations");
+		log.debug("storing {} associations", associations.size());
 		
 		associationRepository.insert(associations);
 	}
@@ -190,23 +235,21 @@ public class OntologySearcher {
 	
 	private List<String> getTermsInClass(OWLOntology ontology, OWLClass cls) {
 		
-		List<String> terms = new ArrayList<String>();
-		
+		// Retrieve the RDFS labels from the classes:
 		OWLAnnotationProperty labelProperty = dataFactory.getRDFSLabel();
-		
 		Collection<OWLAnnotation> annotations =  EntitySearcher.getAnnotations(cls, ontology, labelProperty)
 												 .collect(Collectors.toCollection(LinkedHashSet::new));
-		
+
+		List<String> terms = new ArrayList<String>();
 		for (OWLAnnotation annotation : annotations) {
 				
 			Optional<OWLLiteral> optionalLiteral = annotation.getValue().asLiteral();
-			
 			if (optionalLiteral.isPresent()) {
 				
 				Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
-				
 				if (optionalText.isPresent()) {
 					
+					// Get the keywords from the label.
 					for (String word : getKeywordsFromString(optionalText.get())) {
 						
 						terms.add(word);
@@ -218,7 +261,7 @@ public class OntologySearcher {
 		return terms;	
 	}
 	
-	static Pattern literalStringPattern = Pattern.compile("^\\\"(.*)\\\"\\^\\^xsd:string$", Pattern.CASE_INSENSITIVE);
+	static final Pattern literalStringPattern = Pattern.compile("^\\\"(.*)\\\"\\^\\^xsd:string$", Pattern.CASE_INSENSITIVE);
 	
 	private static Optional<String> getStringFromLiteral(OWLLiteral literal) {
 		
@@ -234,10 +277,12 @@ public class OntologySearcher {
 		}
 	}
 
+	/**
+	 * Breaks a string apart into separate keywords, skipping punctuation and stop words.
+	 */
 	public List<String> getKeywordsFromString(String input) {
 		
 		List<String> result = new ArrayList<String>();
-		
 		for (String word : input.toLowerCase().split(" ")) {
 			
 			if (filterPunctuation)
@@ -252,6 +297,7 @@ public class OntologySearcher {
 
 	private static String wordWithoutPunctuation(String s) {
 		
+		// Return ths input string, but without punctuation characters.
 		String r = "";
 		for (Character c : s.toCharArray()) 
 		{
@@ -265,6 +311,7 @@ public class OntologySearcher {
 
 	private List<String> getStopWords() {
 		
+		// Get the english stop words from the config file.
 		InputStream input = OntologySearcher.class.getResourceAsStream("english-stopwords.txt");
 		
 		BufferedReader reader = new BufferedReader(new InputStreamReader(input));
@@ -287,8 +334,8 @@ public class OntologySearcher {
 	
 	public List<TermAssociation> getAssociations(String input) {
 		
+		// Get associations from mongo, that have words from 'input' as key.
 		List<TermAssociation> associations = new ArrayList<TermAssociation>();
-		
 		for (String key : getKeywordsFromString(input)) {
 
 			TermAssociation inputAssociation = new TermAssociation();

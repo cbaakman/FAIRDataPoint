@@ -42,8 +42,6 @@ import org.apache.commons.lang.text.StrSubstitutor;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.query.MalformedQueryException;
 import org.eclipse.rdf4j.query.parser.sparql.SPARQLParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -92,12 +90,8 @@ public class SearchService {
             SearchSavedQueryDTO searchSavedQueryDTO
     ) throws MetadataRepositoryException {
     	
-    	log.info("calling search on saved query {}", searchSavedQueryDTO.toString());
-    	
         return search(searchSavedQueryDTO.getVariables());
     }
-    
-	static private Logger log = LoggerFactory.getLogger(SearchService.class);
 
     private int countWordOccurenceIn(SearchResult result, String searchWord) {
     	int count = 0;
@@ -113,7 +107,7 @@ public class SearchService {
     	return ontologySearcher.getKeywordsFromString(result.getTitle() + result.getDescription()).size();
 	}
 	
-	private void sortByScores(List<SearchResult> results, final Map<SearchResult, Double> resultScores) {
+	private void sortSearchResultsByScores(List<SearchResult> results, final Map<SearchResult, Double> resultScores) {
 
     	Collections.sort(results, new Comparator<SearchResult>() {
     		
@@ -128,49 +122,69 @@ public class SearchService {
     		}
     	});
 	}
+	
+	/*
+	 * This number has been determined by trial and error.
+	 * Increasing it will lead to a faster search, but with less search words, thus less hits.
+	 */
+	private static final double associationRelevanceThreshold = 2.7;
+	
+	private Set<String> findAssociatedWords(String query)
+	{
+    	List<TermAssociation> associations = ontologySearcher.getAssociations(query);
 
-    public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
-
-    	log.info("a new search was started on query {}", reqDto.getQuery());
-    	
-    	int total = metadataRepository.countTotal();
-
-    	log.info("counted a total of {} metadata repository entries", total);
-    	
-    	List<TermAssociation> associations = ontologySearcher.getAssociations(reqDto.getQuery());
-    	
     	Set<String> words = new HashSet<String>();
     	for (TermAssociation association : associations) {
-    		words.add(association.getValue());
+    		
+    		// Filter by relevance
+    		if (association.getRelevance() > associationRelevanceThreshold)
+    			words.add(association.getValue());
     	}
     	
-    	// Find associated keywords and score the results
+    	return words;
+	}
+
+    public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
+    	
+    	// Count the total amount of documents in the triple store.
+    	// This is relevant for scoring the results.
+    	int total = metadataRepository.countTotal();
+    	
+    	// Expand the number of words to search for, using the web ontologies.
+    	Set<String> words = findAssociatedWords(reqDto.getQuery());
+    	
+    	// Search for the words in the triple store and score the results
     	Map<SearchResult, Double> resultScores = new HashMap<SearchResult, Double>();
     	for (String word : words) {
     		
+    		// Search for documents, having this word.
     		List<SearchResult> results = metadataRepository.findByLiteral(l(word));
+    		if (results.size() == 0)
+    			continue;
     		
-    		double idf = Math.log(((double)total) / (results.size() + 1));
+    		// Calculate the inverse document frequency for the word.
+    		double idf = Math.log(((double)total) / results.size());
     		
     		for (SearchResult result : results) {
-				
-		    	log.info("scoring result {}", result.getTitle());
 			
+    			// Calculate the term frequency for this word in this document.
     			int resultWordCount = countWordsIn(result),
     				resultMatchCount = countWordOccurenceIn(result, word);
     			
     			double tf = ((double)resultMatchCount) / resultWordCount;
     			
+    			// Add up the scores for the result
+    			double score = tf * idf;
     			if (resultScores.containsKey(result))
-					resultScores.put(result, resultScores.get(result) + tf * idf);
-    			else
-					resultScores.put(result, tf * idf);
+					score += resultScores.get(result);
+    			
+				resultScores.put(result, score);
     		}
     	}
     	
-    	// sort by the scores we calculated earlier
+    	// Sort by the scores we calculated earlier
     	List<SearchResult> results = new ArrayList<SearchResult>(resultScores.keySet());
-    	sortByScores(results, resultScores);
+    	sortSearchResultsByScores(results, resultScores);
     	
         return processSearchResults(results);
     }
@@ -179,20 +193,14 @@ public class SearchService {
             SearchQueryVariablesDTO reqDto
     ) throws MetadataRepositoryException, MalformedQueryException {
 		
-    	log.info("a new search was started on variables prefix={} graph-pattern={} ordening={}", reqDto.getPrefixes(), reqDto.getGraphPattern(), reqDto.getOrdering());
-    	
-        // Compose query
+    	// Compose query
         final String query = composeQuery(reqDto);
-        
-        log.info("composed query \"{}\"", query);
         
         // Verify query
         final SPARQLParser parser = new SPARQLParser();
         parser.parseQuery(query, persistentUrl);
         // Get and process results for query
         final List<SearchResult> results = metadataRepository.findBySparqlQuery(query);
-        
-        log.info("found {} search results", results.size());
         
         return processSearchResults(results);
     }
