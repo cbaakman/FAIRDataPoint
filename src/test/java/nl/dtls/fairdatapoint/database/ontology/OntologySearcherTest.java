@@ -56,7 +56,7 @@ public class OntologySearcherTest extends BaseIntegrationTest {
 	}
 	
     @Test
-    @DisplayName("'OntologySearcher' should find additional terms and score them above zero")
+    @DisplayName("'OntologySearcher' should find additional terms with relevance above zero")
     public void testSearch() throws MetadataRepositoryException {
     	
     	long t0 = System.currentTimeMillis();
@@ -70,5 +70,7 @@ public class OntologySearcherTest extends BaseIntegrationTest {
     	assertThat(dt < 60.0); 
     	
     	assertThat(associations.size() > 1);
+    	
+    	assertThat(associations.get(0).getRelevance() > 0.0);
     }
 }
