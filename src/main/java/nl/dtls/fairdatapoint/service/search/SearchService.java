@@ -145,20 +145,18 @@ public class SearchService {
     	
     	return words;
 	}
+	
+	public Map<SearchResult, Double> searchScoreTfidf(Set<String> words) throws MetadataRepositoryException {
 
-    public List<SearchResultDTO> searchAssociations(SearchAssociationsDTO reqDto) throws MetadataRepositoryException {
-    	
     	// Count the total amount of documents in the triple store.
     	// This is relevant for scoring the results.
     	int total = metadataRepository.countTotal();
-    	
-    	// Expand the number of words to search for, using the web ontologies.
-    	Set<String> words = findAssociatedWords(reqDto.getQuery(), reqDto.getRelevanceThreshold());
-    	
+
     	// Search for the words in the triple store and score the results
     	Map<SearchResult, Double> resultScores = new HashMap<SearchResult, Double>();
+    	
     	for (String word : words) {
-    		
+
     		// Search for documents, having this word.
     		List<SearchResult> results = metadataRepository.findByLiteral(l(word));
     		if (results.size() == 0)
@@ -183,6 +181,17 @@ public class SearchService {
 				resultScores.put(result, score);
     		}
     	}
+    	
+    	return resultScores;
+	}
+
+    public List<SearchResultDTO> searchAssociations(SearchAssociationsDTO reqDto) throws MetadataRepositoryException {
+    	    	
+    	// Expand the number of words to search for, using the web ontologies.
+    	Set<String> words = findAssociatedWords(reqDto.getQuery(), reqDto.getRelevanceThreshold());
+    	
+    	// Search for the words in the triple store and score the results
+    	Map<SearchResult, Double> resultScores = searchScoreTfidf(words);
     	
     	// Sort by the scores we calculated earlier
     	List<SearchResult> results = new ArrayList<SearchResult>(resultScores.keySet());
