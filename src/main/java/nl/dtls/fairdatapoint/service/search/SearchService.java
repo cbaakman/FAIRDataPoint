@@ -92,6 +92,11 @@ public class SearchService {
     	
         return search(searchSavedQueryDTO.getVariables());
     }
+    
+    public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
+        final List<SearchResult> results = metadataRepository.findByLiteral(l(reqDto.getQuery()));
+        return processSearchResults(results);
+    }
 
     private int countWordOccurenceIn(SearchResult result, String searchWord) {
     	int count = 0;
@@ -123,13 +128,10 @@ public class SearchService {
     	});
 	}
 	
-	/*
-	 * This number has been determined by trial and error.
-	 * Increasing it will lead to a faster search, but with less search words, thus less hits.
+	/**
+	 * Increasing the relevance threshold will lead to a faster search, but with less search words, thus less hits.
 	 */
-	private static final double associationRelevanceThreshold = 2.7;
-	
-	private Set<String> findAssociatedWords(String query)
+	private Set<String> findAssociatedWords(String query, double relevanceThreshold)
 	{
     	List<TermAssociation> associations = ontologySearcher.getAssociations(query);
 
@@ -137,21 +139,21 @@ public class SearchService {
     	for (TermAssociation association : associations) {
     		
     		// Filter by relevance
-    		if (association.getRelevance() > associationRelevanceThreshold)
+    		if (association.getRelevance() > relevanceThreshold)
     			words.add(association.getValue());
     	}
     	
     	return words;
 	}
 
-    public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
+    public List<SearchResultDTO> searchAssociations(SearchAssociationsDTO reqDto) throws MetadataRepositoryException {
     	
     	// Count the total amount of documents in the triple store.
     	// This is relevant for scoring the results.
     	int total = metadataRepository.countTotal();
     	
     	// Expand the number of words to search for, using the web ontologies.
-    	Set<String> words = findAssociatedWords(reqDto.getQuery());
+    	Set<String> words = findAssociatedWords(reqDto.getQuery(), reqDto.getRelevanceThreshold());
     	
     	// Search for the words in the triple store and score the results
     	Map<SearchResult, Double> resultScores = new HashMap<SearchResult, Double>();

@@ -55,6 +55,17 @@ public class SearchController {
         return ResponseEntity.ok(searchService.search(reqDto));
     }
 
+    @PostMapping(
+            path = "/associations",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<List<SearchResultDTO>> search(
+            @RequestBody @Valid SearchAssociationsDTO reqDto
+    ) throws MetadataRepositoryException {
+        return ResponseEntity.ok(searchService.searchAssociations(reqDto));
+    }
+
     @GetMapping(
             path = "/query",
             produces = MediaType.APPLICATION_JSON_VALUE
