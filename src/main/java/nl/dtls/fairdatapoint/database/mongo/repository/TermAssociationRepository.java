@@ -22,13 +22,19 @@
  */
 package nl.dtls.fairdatapoint.database.mongo.repository;
 
+import java.net.URL;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 
 import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
 
 public interface TermAssociationRepository extends MongoRepository<TermAssociation, String> {
 	
-	List<TermAssociation> findByKey(String key);
+	List<TermAssociation> findByUrl(URL url);
+	
+	@Query(value="{'key' : {'$in' : ?0 }, 'url' : {'$in' : ?1 } }")
+	List<TermAssociation> findByKeysAndUrls(List<String> keys, List<URL> urls);
 }

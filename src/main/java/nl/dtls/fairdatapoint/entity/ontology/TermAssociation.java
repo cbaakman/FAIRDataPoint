@@ -24,6 +24,7 @@ package nl.dtls.fairdatapoint.entity.ontology;
 
 import lombok.*;
 
+import java.net.URL;
 import java.util.Objects;
 
 import org.bson.types.ObjectId;
@@ -47,9 +48,12 @@ public class TermAssociation {
     private String value;
     
     private double relevance;
+
+    @Indexed
+    private URL url;
     
     @Override
     public int hashCode() {
-    	return Objects.hash(key, value);
+    	return Objects.hash(url, key, value);
     }
 }

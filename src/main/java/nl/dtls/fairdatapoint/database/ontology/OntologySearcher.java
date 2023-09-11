@@ -57,16 +57,18 @@ import org.semanticweb.owlapi.search.EntitySearcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import nl.dtls.fairdatapoint.database.mongo.repository.TermAssociationRepository;
 import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
 
-@Service
 public class OntologySearcher {
 	
 	private boolean filterPunctuation = true;
 	private List<String> stopWords = getStopWords();
+	private List<URL> ontologyURLs = new ArrayList<URL>();
 	
 	static private OWLOntologyManager ontologyManager = OWLManager.createOWLOntologyManager();
 	static private OWLDataFactory dataFactory = OWLManager.getOWLDataFactory();
@@ -79,12 +81,12 @@ public class OntologySearcher {
 	@PostConstruct
 	private void init() {
 		
-		if (associationRepository.count() == 0) {
-			
-			log.info("No associations detected in the repository");
-			
-			indexAllOntologies();
-		}
+		indexAllOntologies();
+	}
+	
+	private boolean alreadyIndexed(URL url) {
+		
+		return (associationRepository.findByUrl(url).size() > 0);
 	}
 	
 	private static File getCacheDirectory() throws IOException {
@@ -98,30 +100,54 @@ public class OntologySearcher {
 		
 		return directory;
 	}
+
+	public void setOntologyUrls(List<URL> ontologyUrls) {
+		
+		this.ontologyURLs = ontologyUrls;
+	}
 	
-	private static OWLOntology fetchThesaurus() throws IOException, OWLOntologyCreationException {
+	private static File getCacheFilename(URL url) throws IOException {
+		
+		File cachePath = new File(getCacheDirectory().getPath(), new File(url.getFile()).getName());
+		
+		return cachePath;
+	}
+	
+	private static File fetchOwl(URL url) throws IOException {
 		
 		// Download the thesaurus owl file.
-		File cachePath = new File(getCacheDirectory(), "Thesaurus_23.05e.OWL.zip");
+		File cachePath = getCacheFilename(url);
 		if (!cachePath.isFile()) {
 
 			log.info("downloading {}", cachePath.getName());
 			
-			URL ontologyURL = new URL("https://evs.nci.nih.gov/ftp1/NCI_Thesaurus/archive/23.05e_Release/Thesaurus_23.05e.OWL.zip");
-			
-			FileUtils.copyURLToFile(ontologyURL, cachePath);
+			FileUtils.copyURLToFile(url, cachePath);
 		}
-
-		// Parse it as an ontology.
-		log.info("parsing {}", cachePath.getName());
 		
-		InputStream input = new FileInputStream(cachePath.toString());
+		return cachePath;
+	}
 		
-		ZipInputStream zipInput = new ZipInputStream(input);
+	private static OWLOntology parseOwl(File file) throws OWLOntologyCreationException, IOException {
 		
-		zipInput.getNextEntry();
+		OWLOntology ontology;
+		InputStream input = new FileInputStream(file.toString());
 		
-		return ontologyManager.loadOntologyFromOntologyDocument(zipInput);
+		if (file.getName().endsWith(".zip")) {
+		
+			ZipInputStream zipInput = new ZipInputStream(input);
+		
+			zipInput.getNextEntry();
+			
+			ontology = ontologyManager.loadOntologyFromOntologyDocument(zipInput);
+			
+			zipInput.close();
+		}
+		else {
+			ontology = ontologyManager.loadOntologyFromOntologyDocument(input);
+			input.close();
+		}
+		
+		return ontology;
 	}
 	
 	/**
@@ -139,24 +165,29 @@ public class OntologySearcher {
 	 */
 	public void indexAllOntologies() {
 		
-		List<OWLOntology> ontologies = new ArrayList<OWLOntology>();
+		for (URL url : this.ontologyURLs) {
 
-		try {
-			OWLOntology thesaurus = fetchThesaurus();
-			log.info("finished loading the thesaurus ontology");
+			if (alreadyIndexed(url))
+				continue;
 			
-			ontologies.add(thesaurus);
-		} catch (IOException e) {
-			log.error("I/O exception on indexing thesaurus: {}", e);
-			
-		} catch (OWLOntologyCreationException e) {
-			log.error("ontology exception on indexing thesaurus: {}", e);
+			try {
+				File owlFile = fetchOwl(url);
+				
+				log.info("parsing {}", owlFile.getName());
+				OWLOntology ontology = parseOwl(owlFile);
+				
+				log.info("beginning to index {}", url);
+				indexOntology(ontology, url);
+				
+			} catch (IOException e) {
+				log.error("I/O exception on indexing thesaurus: {}", e);
+				
+			} catch (OWLOntologyCreationException e) {
+				log.error("ontology exception on indexing thesaurus: {}", e);
+			}
 		}
-
-		log.info("beginning to index all ontologies");
-		indexOntologies(ontologies);
 	}
-	
+
 	private Map<String, Integer> countTerms(List<String> terms) {
 
 		// Fill a map, containing the count of each string within the input list.
@@ -171,16 +202,14 @@ public class OntologySearcher {
 		return termCount;
 	}
 	
-	private void indexOntologies(List<OWLOntology> ontologies) {
+	private void indexOntology(OWLOntology ontology, URL url) {
 		
 		// Count the frequency of the terms everywhere.
 		List<String> allTerms = new ArrayList<String>();
 		int classCount = 0;
-		for (OWLOntology ontology : ontologies)  {
-			for (OWLClass cls : ontology.getClassesInSignature()) {
-				allTerms.addAll(getTermsInClass(ontology, cls));
-				classCount ++;
-			}
+		for (OWLClass cls : ontology.getClassesInSignature()) {
+			allTerms.addAll(getTermsInClass(ontology, cls));
+			classCount ++;
 		}
 		
 		// Count for every term how often it occurs overall.
@@ -188,35 +217,34 @@ public class OntologySearcher {
 
 		log.debug("finding associations from terms in classes");
 		List<TermAssociation> associations = new ArrayList<TermAssociation>();
-		for (OWLOntology ontology : ontologies) {
-			for (OWLClass cls : ontology.getClassesInSignature()) {
-				
-				// get terms in class
-				List<String> termsInClass = getTermsInClass(ontology, cls);
-				int totalClassTermCount = termsInClass.size();
-				
-				// count the term frequency within the class
-				Map<String, Integer> termCountInClass = countTerms(termsInClass);
-				
-				// See which words are together in this class.
-				for (String term1 : termCountInClass.keySet()) {
-					for (String term2 : termCountInClass.keySet()) {
-						
-						// Calculate the relevance for the association.
-						double idf1 = Math.log((double)classCount / termCount.get(term1)),
-							   idf2 = Math.log((double)classCount / termCount.get(term2)),
-							   tf1 = (double)termCountInClass.get(term1) / totalClassTermCount,
-							   tf2 = (double)termCountInClass.get(term2) / totalClassTermCount,
-							   
-							   relevance = tf1 * idf1 * tf2 * idf2;
-						
-						TermAssociation association = new TermAssociation();
-						association.setKey(term1);
-						association.setValue(term2);
-						association.setRelevance(relevance);
-						
-						associations.add(association);
-					}
+		for (OWLClass cls : ontology.getClassesInSignature()) {
+			
+			// get terms in class
+			List<String> termsInClass = getTermsInClass(ontology, cls);
+			int totalClassTermCount = termsInClass.size();
+			
+			// count the term frequency within the class
+			Map<String, Integer> termCountInClass = countTerms(termsInClass);
+			
+			// See which words are together in this class.
+			for (String term1 : termCountInClass.keySet()) {
+				for (String term2 : termCountInClass.keySet()) {
+					
+					// Calculate the relevance for the association.
+					double idf1 = Math.log((double)classCount / termCount.get(term1)),
+						   idf2 = Math.log((double)classCount / termCount.get(term2)),
+						   tf1 = (double)termCountInClass.get(term1) / totalClassTermCount,
+						   tf2 = (double)termCountInClass.get(term2) / totalClassTermCount,
+						   
+						   relevance = tf1 * idf1 * tf2 * idf2;
+					
+					TermAssociation association = new TermAssociation();
+					association.setKey(term1);
+					association.setValue(term2);
+					association.setRelevance(relevance);
+					association.setUrl(url);
+					
+					associations.add(association);
 				}
 			}
 		}
@@ -329,15 +357,8 @@ public class OntologySearcher {
 		
 		// Get associations from mongo, that have words from 'input' as key.
 		List<TermAssociation> associations = new ArrayList<TermAssociation>();
-		for (String key : getKeywordsFromString(input)) {
-
-			TermAssociation inputAssociation = new TermAssociation();
-			inputAssociation.setKey(input);
-			inputAssociation.setValue(input);
-			associations.add(inputAssociation);
-			
-			associations.addAll(associationRepository.findByKey(key));
-		}
+		
+		associations.addAll(associationRepository.findByKeysAndUrls(getKeywordsFromString(input), this.ontologyURLs));
 		
 		log.debug("found {} associations for \"{}\"", associations.size(), input);
 		
