@@ -19,4 +19,6 @@ import lombok.Setter;
 public class OntologySearchProperties {
 	
 	private List<URL> ontologyUrls = new ArrayList<URL>();
+	
+	private double associationRelevanceThreshold;
 }

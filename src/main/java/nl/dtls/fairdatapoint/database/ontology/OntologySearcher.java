@@ -115,7 +115,7 @@ public class OntologySearcher {
 	
 	private static File fetchOwl(URL url) throws IOException {
 		
-		// Download the thesaurus owl file.
+		// Download the owl file.
 		File cachePath = getCacheFilename(url);
 		if (!cachePath.isFile()) {
 
@@ -180,10 +180,10 @@ public class OntologySearcher {
 				indexOntology(ontology, url);
 				
 			} catch (IOException e) {
-				log.error("I/O exception on indexing thesaurus: {}", e);
+				log.error("I/O exception on indexing {}: {}", url, e);
 				
 			} catch (OWLOntologyCreationException e) {
-				log.error("ontology exception on indexing thesaurus: {}", e);
+				log.error("ontology exception on indexing {}: {}", url, e);
 			}
 		}
 	}
@@ -353,12 +353,22 @@ public class OntologySearcher {
 		return lines;
 	}
 	
+	private double relevanceThreshold;
+	
+	public void setRelevanceThreshold(double value) {
+		this.relevanceThreshold = value;
+	}
+	
 	public List<TermAssociation> getAssociations(String input) {
 		
 		// Get associations from mongo, that have words from 'input' as key.
 		List<TermAssociation> associations = new ArrayList<TermAssociation>();
 		
-		associations.addAll(associationRepository.findByKeysAndUrls(getKeywordsFromString(input), this.ontologyURLs));
+		for (TermAssociation a : associationRepository.findByKeysAndUrls(getKeywordsFromString(input), this.ontologyURLs)) {
+			
+			if (a.getRelevance() > this.relevanceThreshold)
+				associations.add(a);
+		}
 		
 		log.debug("found {} associations for \"{}\"", associations.size(), input);
 		

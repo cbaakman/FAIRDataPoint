@@ -127,20 +127,20 @@ public class SearchService {
     		}
     	});
 	}
+
+	private double associationRelevanceThreshold;
 	
 	/**
 	 * Increasing the relevance threshold will lead to a faster search, but with less search words, thus less hits.
 	 */
-	private Set<String> findAssociatedWords(String query, double relevanceThreshold)
+	private Set<String> findAssociatedWords(String query)
 	{
     	List<TermAssociation> associations = ontologySearcher.getAssociations(query);
 
     	Set<String> words = new HashSet<String>();
     	for (TermAssociation association : associations) {
     		
-    		// Filter by relevance
-    		if (association.getRelevance() > relevanceThreshold)
-    			words.add(association.getValue());
+    		words.add(association.getValue());
     	}
     	
     	return words;
@@ -185,10 +185,10 @@ public class SearchService {
     	return resultScores;
 	}
 
-    public List<SearchResultDTO> searchAssociations(SearchAssociationsDTO reqDto) throws MetadataRepositoryException {
+    public List<SearchResultDTO> searchAssociations(SearchQueryDTO reqDto) throws MetadataRepositoryException {
     	    	
     	// Expand the number of words to search for, using the web ontologies.
-    	Set<String> words = findAssociatedWords(reqDto.getQuery(), reqDto.getRelevanceThreshold());
+    	Set<String> words = findAssociatedWords(reqDto.getQuery());
     	
     	// Search for the words in the triple store and score the results
     	Map<SearchResult, Double> resultScores = searchScoreTfidf(words);

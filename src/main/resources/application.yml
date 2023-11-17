@@ -73,3 +73,6 @@ springdoc:
 
 server:
   forward-headers-strategy: framework
+
+search:
+  associationRelevanceThreshold: 2.7

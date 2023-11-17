@@ -60,8 +60,8 @@ public class SearchController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE
     )
-    public ResponseEntity<List<SearchResultDTO>> search(
-            @RequestBody @Valid SearchAssociationsDTO reqDto
+    public ResponseEntity<List<SearchResultDTO>> searchAssociations(
+            @RequestBody @Valid SearchQueryDTO reqDto
     ) throws MetadataRepositoryException {
         return ResponseEntity.ok(searchService.searchAssociations(reqDto));
     }
