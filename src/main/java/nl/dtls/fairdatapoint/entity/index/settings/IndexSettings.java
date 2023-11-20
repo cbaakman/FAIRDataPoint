@@ -22,12 +22,12 @@
  */
 package nl.dtls.fairdatapoint.entity.index.settings;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import javax.validation.constraints.NotNull;
 import java.util.Objects;
 
 @Document
@@ -46,12 +46,8 @@ public class IndexSettings {
     @NotNull
     private IndexSettingsPing ping;
 
-    public static IndexSettings getDefault() {
-        final IndexSettings settings = new IndexSettings();
-        settings.setPing(IndexSettingsPing.getDefault());
-        settings.setRetrieval(IndexSettingsRetrieval.getDefault());
-        return settings;
-    }
+    @NotNull
+    private Boolean autoPermit;
 
     @Override
     public boolean equals(Object o) {

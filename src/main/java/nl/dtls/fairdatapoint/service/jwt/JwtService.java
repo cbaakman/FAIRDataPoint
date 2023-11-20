@@ -23,6 +23,7 @@
 package nl.dtls.fairdatapoint.service.jwt;
 
 import io.jsonwebtoken.*;
+import jakarta.annotation.PostConstruct;
 import nl.dtls.fairdatapoint.api.dto.auth.AuthDTO;
 import nl.dtls.fairdatapoint.database.mongo.repository.UserRepository;
 import nl.dtls.fairdatapoint.entity.exception.UnauthorizedException;
@@ -37,7 +38,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.Key;
 import java.util.Base64;
@@ -73,7 +73,7 @@ public class JwtService {
     protected void init() {
         secretKey = Base64.getEncoder().encodeToString(secretKey.getBytes());
         key = new SecretKeySpec(secretKey.getBytes(), SignatureAlgorithm.HS256.getJcaName());
-        parser = Jwts.parserBuilder().setSigningKey(key).build();
+        parser = Jwts.parser().setSigningKey(key).build();
     }
 
     public String createToken(AuthDTO authDTO) {
@@ -94,13 +94,13 @@ public class JwtService {
     }
 
     public String getUserUuid(String token) {
-        return parser.parseClaimsJws(token).getBody().getSubject();
+        return parser.parseClaimsJws(token).getPayload().getSubject();
     }
 
     public boolean validateToken(String token) {
         try {
             final Jws<Claims> claims = parser.parseClaimsJws(token);
-            return !claims.getBody().getExpiration().before(new Date());
+            return !claims.getPayload().getExpiration().before(new Date());
         }
         catch (JwtException | IllegalArgumentException exception) {
             throw new UnauthorizedException("Expired or invalid JWT token");
@@ -108,13 +108,13 @@ public class JwtService {
     }
 
     private String buildToken(User user) {
-        final Claims claims = Jwts.claims().setSubject(user.getUuid());
+        final Claims claims = Jwts.claims().subject(user.getUuid()).build();
         final Date now = new Date();
         final Date validity = new Date(now.getTime() + (expiration * DAY_MS));
         return Jwts.builder()
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(validity)
+                .claims(claims)
+                .issuedAt(now)
+                .expiration(validity)
                 .signWith(key)
                 .compact();
     }
