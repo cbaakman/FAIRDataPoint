@@ -21,4 +21,6 @@ public class OntologySearchProperties {
 	private List<URL> ontologyUrls = new ArrayList<URL>();
 	
 	private double associationRelevanceThreshold;
+
+	private String cachePath;
 }

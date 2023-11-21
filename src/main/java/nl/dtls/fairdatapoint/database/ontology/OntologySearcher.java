@@ -66,6 +66,7 @@ import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
 
 public class OntologySearcher {
 	
+	private String cachePath;
 	private boolean filterPunctuation = true;
 	private List<String> stopWords = getStopWords();
 	private List<URL> ontologyURLs = new ArrayList<URL>();
@@ -79,26 +80,17 @@ public class OntologySearcher {
 	TermAssociationRepository associationRepository;
 	
 	@PostConstruct
-	private void init() {
-		
+	void init() {
 		indexAllOntologies();
 	}
-	
+
 	private boolean alreadyIndexed(URL url) {
 		
 		return (associationRepository.findByUrl(url).size() > 0);
 	}
-	
-	private static File getCacheDirectory() throws IOException {
-		
-		// The OntologySearcher uses this directory to temporarily store downloaded ontology files in.
-		
-		File directory = new File("./fdp-ontology-cache");
-		if (!directory.isDirectory()) {
-			directory.mkdir();
-		}
-		
-		return directory;
+
+	public void setCachePath(String path) {
+		cachePath = path;
 	}
 
 	public void setOntologyUrls(List<URL> ontologyUrls) {
@@ -106,25 +98,25 @@ public class OntologySearcher {
 		this.ontologyURLs = ontologyUrls;
 	}
 	
-	private static File getCacheFilename(URL url) throws IOException {
+	private File getCacheFilename(URL url) throws IOException {
 		
-		File cachePath = new File(getCacheDirectory().getPath(), new File(url.getFile()).getName());
+		File cached = new File(cachePath, new File(url.getFile()).getName());
 		
-		return cachePath;
+		return cached;
 	}
 	
-	private static File fetchOwl(URL url) throws IOException {
+	private File fetchOwl(URL url) throws IOException {
 		
 		// Download the owl file.
-		File cachePath = getCacheFilename(url);
-		if (!cachePath.isFile()) {
+		File cached = getCacheFilename(url);
+		if (!cached.isFile()) {
 
-			log.info("downloading {}", cachePath.getName());
+			log.info("downloading {}", cached.getName());
 			
-			FileUtils.copyURLToFile(url, cachePath);
+			FileUtils.copyURLToFile(url, cached);
 		}
 		
-		return cachePath;
+		return cached;
 	}
 		
 	private static OWLOntology parseOwl(File file) throws OWLOntologyCreationException, IOException {

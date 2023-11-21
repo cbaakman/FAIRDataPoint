@@ -16,7 +16,8 @@ public class OntologySearcherConfig {
     	
     	searcher.setOntologyUrls(properties.getOntologyUrls());
     	searcher.setRelevanceThreshold(properties.getAssociationRelevanceThreshold());
-    	
-		return searcher;
+    	searcher.setCachePath(properties.getCachePath());
+
+	return searcher;
     }
 }
