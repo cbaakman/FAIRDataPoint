@@ -57,8 +57,13 @@ import static java.util.stream.Collectors.toList;
 import static nl.dtls.fairdatapoint.util.ValueFactoryHelper.i;
 import static nl.dtls.fairdatapoint.util.ValueFactoryHelper.l;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 public class SearchService {
+
+    private static final Logger log = LoggerFactory.getLogger(SearchService.class);
 
     private static final String QUERY_TEMPLATE_NAME = "queryTemplate.sparql";
 
@@ -94,6 +99,9 @@ public class SearchService {
     }
     
     public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
+
+        log.info("A regular search has been submitted with query {}", reqDto.getQuery());
+
         final List<SearchResult> results = metadataRepository.findByLiteral(l(reqDto.getQuery()));
         return processSearchResults(results);
     }
@@ -186,7 +194,9 @@ public class SearchService {
 	}
 
     public List<SearchResultDTO> searchAssociations(SearchQueryDTO reqDto) throws MetadataRepositoryException {
-    	    	
+
+        log.info("An associations-based search has been submitted with query {}", reqDto.getQuery());
+
     	// Expand the number of words to search for, using the web ontologies.
     	Set<String> words = findAssociatedWords(reqDto.getQuery());
     	
@@ -203,16 +213,18 @@ public class SearchService {
 	public List<SearchResultDTO> search(
             SearchQueryVariablesDTO reqDto
     ) throws MetadataRepositoryException, MalformedQueryException {
-		
+
     	// Compose query
         final String query = composeQuery(reqDto);
-        
+
+        log.info("A SPARQL-based search has been submitted with query {}", query);
+
         // Verify query
         final SPARQLParser parser = new SPARQLParser();
         parser.parseQuery(query, persistentUrl);
         // Get and process results for query
         final List<SearchResult> results = metadataRepository.findBySparqlQuery(query);
-        
+
         return processSearchResults(results);
     }
 
