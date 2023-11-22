@@ -24,6 +24,8 @@ package nl.dtls.fairdatapoint.service.search;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
+
+import lombok.extern.slf4j.Slf4j;
 import nl.dtls.fairdatapoint.api.dto.search.*;
 import nl.dtls.fairdatapoint.database.ontology.OntologySearcher;
 import nl.dtls.fairdatapoint.database.rdf.repository.exception.MetadataRepositoryException;
@@ -36,6 +38,7 @@ import nl.dtls.fairdatapoint.entity.search.SearchFilterType;
 import nl.dtls.fairdatapoint.entity.search.SearchFilterValue;
 import nl.dtls.fairdatapoint.entity.search.SearchResult;
 import nl.dtls.fairdatapoint.entity.settings.SettingsSearchFilter;
+import nl.dtls.fairdatapoint.service.metadata.catalog.CatalogMetadataService;
 import nl.dtls.fairdatapoint.service.metadata.state.MetadataStateService;
 import nl.dtls.fairdatapoint.service.settings.SettingsService;
 import org.apache.commons.lang.text.StrSubstitutor;
@@ -60,10 +63,9 @@ import static nl.dtls.fairdatapoint.util.ValueFactoryHelper.l;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Slf4j
 @Service
 public class SearchService {
-
-    private static final Logger log = LoggerFactory.getLogger(SearchService.class);
 
     private static final String QUERY_TEMPLATE_NAME = "queryTemplate.sparql";
 

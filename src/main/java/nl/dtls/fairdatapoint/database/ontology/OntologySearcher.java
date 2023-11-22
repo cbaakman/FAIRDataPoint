@@ -61,9 +61,12 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import lombok.extern.slf4j.Slf4j;
 import nl.dtls.fairdatapoint.database.mongo.repository.TermAssociationRepository;
 import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
+import nl.dtls.fairdatapoint.service.metadata.catalog.CatalogMetadataService;
 
+@Slf4j
 public class OntologySearcher {
 	
 	private String cachePath;
@@ -73,8 +76,6 @@ public class OntologySearcher {
 	
 	static private OWLOntologyManager ontologyManager = OWLManager.createOWLOntologyManager();
 	static private OWLDataFactory dataFactory = OWLManager.getOWLDataFactory();
-	
-	static private Logger log = LoggerFactory.getLogger(OntologySearcher.class);
 
 	@Autowired
 	TermAssociationRepository associationRepository;
