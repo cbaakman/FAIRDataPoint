@@ -53,6 +53,8 @@ public class CatalogMetadataService extends AbstractMetadataService {
         try {
             final List<IRI> themes = metadataRepository.getDatasetThemesForCatalog(uri);
             setThemeTaxonomies(catalog, uri, themes);
+            
+            log.info("retreived metadata for catalog {}", uri);
         }
         catch (MetadataRepositoryException exception) {
             log.error("Error retrieving the metadata");
