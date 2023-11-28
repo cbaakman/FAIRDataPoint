@@ -53,7 +53,11 @@ public class CatalogMetadataService extends AbstractMetadataService {
         try {
             final List<IRI> themes = metadataRepository.getDatasetThemesForCatalog(uri);
             setThemeTaxonomies(catalog, uri, themes);
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> 44e422b929527dd6c0fcba49738cdcc06f24965c
             log.info("retreived metadata for catalog {}", uri);
         }
         catch (MetadataRepositoryException exception) {
@@ -73,9 +77,9 @@ public class CatalogMetadataService extends AbstractMetadataService {
 
     @Override
     public Model update(
-            Model metadata, IRI uri, ResourceDefinition resourceDefinition
+            Model metadata, IRI uri, ResourceDefinition resourceDefinition, boolean validate
     ) throws MetadataServiceException {
         setThemeTaxonomies(metadata, uri, null);
-        return super.update(metadata, uri, resourceDefinition);
+        return super.update(metadata, uri, resourceDefinition, validate);
     }
 }

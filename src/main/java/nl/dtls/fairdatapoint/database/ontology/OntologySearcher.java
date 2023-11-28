@@ -60,10 +60,15 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import lombok.extern.slf4j.Slf4j;
 import nl.dtls.fairdatapoint.database.mongo.repository.TermAssociationRepository;
 import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
+import nl.dtls.fairdatapoint.service.metadata.catalog.CatalogMetadataService;
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 44e422b929527dd6c0fcba49738cdcc06f24965c
 @Slf4j
 public class OntologySearcher {
 	
@@ -74,20 +79,30 @@ public class OntologySearcher {
 	
 	static private OWLOntologyManager ontologyManager = OWLManager.createOWLOntologyManager();
 	static private OWLDataFactory dataFactory = OWLManager.getOWLDataFactory();
+<<<<<<< HEAD
 	
+=======
+
+>>>>>>> 44e422b929527dd6c0fcba49738cdcc06f24965c
 	@Autowired
 	TermAssociationRepository associationRepository;
 	
 	@PostConstruct
-	private void init() {
-		
+	void init() {
 		indexAllOntologies();
 	}
-	
+
 	private boolean alreadyIndexed(URL url) {
 		
 		return (associationRepository.findByUrl(url).size() > 0);
 	}
+<<<<<<< HEAD
+=======
+
+	public void setCachePath(String path) {
+		cachePath = path;
+	}
+>>>>>>> 44e422b929527dd6c0fcba49738cdcc06f24965c
 
 	public void setCachePath(String path) {
 		cachePath = path;

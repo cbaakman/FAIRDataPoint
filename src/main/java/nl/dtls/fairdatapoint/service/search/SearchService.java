@@ -24,6 +24,8 @@ package nl.dtls.fairdatapoint.service.search;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
+
+import lombok.extern.slf4j.Slf4j;
 import nl.dtls.fairdatapoint.api.dto.search.*;
 import nl.dtls.fairdatapoint.database.ontology.OntologySearcher;
 import nl.dtls.fairdatapoint.database.rdf.repository.exception.MetadataRepositoryException;
@@ -36,6 +38,7 @@ import nl.dtls.fairdatapoint.entity.search.SearchFilterType;
 import nl.dtls.fairdatapoint.entity.search.SearchFilterValue;
 import nl.dtls.fairdatapoint.entity.search.SearchResult;
 import nl.dtls.fairdatapoint.entity.settings.SettingsSearchFilter;
+import nl.dtls.fairdatapoint.service.metadata.catalog.CatalogMetadataService;
 import nl.dtls.fairdatapoint.service.metadata.state.MetadataStateService;
 import nl.dtls.fairdatapoint.service.settings.SettingsService;
 import org.apache.commons.lang.text.StrSubstitutor;
@@ -58,6 +61,12 @@ import static java.util.stream.Collectors.toList;
 import static nl.dtls.fairdatapoint.util.ValueFactoryHelper.i;
 import static nl.dtls.fairdatapoint.util.ValueFactoryHelper.l;
 
+<<<<<<< HEAD
+=======
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+>>>>>>> 44e422b929527dd6c0fcba49738cdcc06f24965c
 @Slf4j
 @Service
 public class SearchService {
@@ -97,7 +106,11 @@ public class SearchService {
     
     public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
 
+<<<<<<< HEAD
 		log.info("A regular search has been submitted with query {}", reqDto.getQuery());
+=======
+        log.info("A regular search has been submitted with query {}", reqDto.getQuery());
+>>>>>>> 44e422b929527dd6c0fcba49738cdcc06f24965c
 
         final List<SearchResult> results = metadataRepository.findByLiteral(l(reqDto.getQuery()));
         return processSearchResults(results);
@@ -191,7 +204,9 @@ public class SearchService {
 	}
 
     public List<SearchResultDTO> searchAssociations(SearchQueryDTO reqDto) throws MetadataRepositoryException {
-    	    	
+
+        log.info("An associations-based search has been submitted with query {}", reqDto.getQuery());
+
     	// Expand the number of words to search for, using the web ontologies.
     	Set<String> words = findAssociatedWords(reqDto.getQuery());
     	
@@ -208,18 +223,23 @@ public class SearchService {
 	public List<SearchResultDTO> search(
             SearchQueryVariablesDTO reqDto
     ) throws MetadataRepositoryException, MalformedQueryException {
-		
+
     	// Compose query
         final String query = composeQuery(reqDto);
+<<<<<<< HEAD
         
 		log.info("A SPARQL-based search has been submitted with query {}", query);
+=======
+
+        log.info("A SPARQL-based search has been submitted with query {}", query);
+>>>>>>> 44e422b929527dd6c0fcba49738cdcc06f24965c
 
         // Verify query
         final SPARQLParser parser = new SPARQLParser();
         parser.parseQuery(query, persistentUrl);
         // Get and process results for query
         final List<SearchResult> results = metadataRepository.findBySparqlQuery(query);
-        
+
         return processSearchResults(results);
     }
 
