@@ -4,3 +4,11 @@ target/
 # Netbeans
 nb-configuration\.xml
 /nbproject/
+
+#eclipse
+.settings/*
+.project
+.classpath
+
+# vim
+*.swp

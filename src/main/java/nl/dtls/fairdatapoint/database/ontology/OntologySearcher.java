@@ -43,6 +43,7 @@ import java.util.zip.ZipInputStream;
 
 import javax.annotation.PostConstruct;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLAnnotation;
@@ -54,8 +55,6 @@ import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.search.EntitySearcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -64,8 +63,11 @@ import org.springframework.stereotype.Service;
 import nl.dtls.fairdatapoint.database.mongo.repository.TermAssociationRepository;
 import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
 
+
+@Slf4j
 public class OntologySearcher {
 	
+	private String cachePath;
 	private boolean filterPunctuation = true;
 	private List<String> stopWords = getStopWords();
 	private List<URL> ontologyURLs = new ArrayList<URL>();
@@ -73,8 +75,6 @@ public class OntologySearcher {
 	static private OWLOntologyManager ontologyManager = OWLManager.createOWLOntologyManager();
 	static private OWLDataFactory dataFactory = OWLManager.getOWLDataFactory();
 	
-	static private Logger log = LoggerFactory.getLogger(OntologySearcher.class);
-
 	@Autowired
 	TermAssociationRepository associationRepository;
 	
@@ -88,43 +88,35 @@ public class OntologySearcher {
 		
 		return (associationRepository.findByUrl(url).size() > 0);
 	}
-	
-	private static File getCacheDirectory() throws IOException {
-		
-		// The OntologySearcher uses this directory to temporarily store downloaded ontology files in.
-		
-		File directory = new File("./fdp-ontology-cache");
-		if (!directory.isDirectory()) {
-			directory.mkdir();
-		}
-		
-		return directory;
-	}
 
+	public void setCachePath(String path) {
+		cachePath = path;
+	}
+	
 	public void setOntologyUrls(List<URL> ontologyUrls) {
 		
 		this.ontologyURLs = ontologyUrls;
 	}
 	
-	private static File getCacheFilename(URL url) throws IOException {
+	private File getCacheFilename(URL url) throws IOException {
 		
-		File cachePath = new File(getCacheDirectory().getPath(), new File(url.getFile()).getName());
+		File cached = new File(cachePath, new File(url.getFile()).getName());
 		
-		return cachePath;
+		return cached;
 	}
 	
-	private static File fetchOwl(URL url) throws IOException {
+	private File fetchOwl(URL url) throws IOException {
 		
 		// Download the owl file.
-		File cachePath = getCacheFilename(url);
-		if (!cachePath.isFile()) {
+		File cached = getCacheFilename(url);
+		if (!cached.isFile()) {
 
-			log.info("downloading {}", cachePath.getName());
+			log.info("downloading {}", cached.getName());
 			
-			FileUtils.copyURLToFile(url, cachePath);
+			FileUtils.copyURLToFile(url, cached);
 		}
 		
-		return cachePath;
+		return cached;
 	}
 		
 	private static OWLOntology parseOwl(File file) throws OWLOntologyCreationException, IOException {

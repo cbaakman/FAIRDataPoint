@@ -45,6 +45,7 @@ import org.eclipse.rdf4j.query.parser.sparql.SPARQLParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URL;
@@ -57,6 +58,7 @@ import static java.util.stream.Collectors.toList;
 import static nl.dtls.fairdatapoint.util.ValueFactoryHelper.i;
 import static nl.dtls.fairdatapoint.util.ValueFactoryHelper.l;
 
+@Slf4j
 @Service
 public class SearchService {
 
@@ -94,6 +96,9 @@ public class SearchService {
     }
     
     public List<SearchResultDTO> search(SearchQueryDTO reqDto) throws MetadataRepositoryException {
+
+		log.info("A regular search has been submitted with query {}", reqDto.getQuery());
+
         final List<SearchResult> results = metadataRepository.findByLiteral(l(reqDto.getQuery()));
         return processSearchResults(results);
     }
@@ -207,6 +212,8 @@ public class SearchService {
     	// Compose query
         final String query = composeQuery(reqDto);
         
+		log.info("A SPARQL-based search has been submitted with query {}", query);
+
         // Verify query
         final SPARQLParser parser = new SPARQLParser();
         parser.parseQuery(query, persistentUrl);
