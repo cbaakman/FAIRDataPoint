@@ -43,6 +43,7 @@ import java.util.zip.ZipInputStream;
 
 import javax.annotation.PostConstruct;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.semanticweb.owlapi.apibinding.OWLManager;
 import org.semanticweb.owlapi.model.OWLAnnotation;
@@ -54,17 +55,14 @@ import org.semanticweb.owlapi.model.OWLOntology;
 import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 import org.semanticweb.owlapi.model.OWLOntologyManager;
 import org.semanticweb.owlapi.search.EntitySearcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
-import lombok.extern.slf4j.Slf4j;
 import nl.dtls.fairdatapoint.database.mongo.repository.TermAssociationRepository;
 import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
-import nl.dtls.fairdatapoint.service.metadata.catalog.CatalogMetadataService;
+
 
 @Slf4j
 public class OntologySearcher {
@@ -76,15 +74,16 @@ public class OntologySearcher {
 	
 	static private OWLOntologyManager ontologyManager = OWLManager.createOWLOntologyManager();
 	static private OWLDataFactory dataFactory = OWLManager.getOWLDataFactory();
-
+	
 	@Autowired
 	TermAssociationRepository associationRepository;
 	
 	@PostConstruct
-	void init() {
+	private void init() {
+		
 		indexAllOntologies();
 	}
-
+	
 	private boolean alreadyIndexed(URL url) {
 		
 		return (associationRepository.findByUrl(url).size() > 0);
@@ -93,7 +92,7 @@ public class OntologySearcher {
 	public void setCachePath(String path) {
 		cachePath = path;
 	}
-
+	
 	public void setOntologyUrls(List<URL> ontologyUrls) {
 		
 		this.ontologyURLs = ontologyUrls;

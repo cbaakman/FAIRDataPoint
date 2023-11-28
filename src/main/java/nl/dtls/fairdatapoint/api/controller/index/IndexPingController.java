@@ -28,21 +28,22 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import nl.dtls.fairdatapoint.api.dto.index.ping.PingDTO;
 import nl.dtls.fairdatapoint.database.rdf.repository.exception.MetadataRepositoryException;
 import nl.dtls.fairdatapoint.entity.index.event.Event;
 import nl.dtls.fairdatapoint.service.UtilityService;
-import nl.dtls.fairdatapoint.service.index.entry.IndexEntryService;
 import nl.dtls.fairdatapoint.service.index.event.EventService;
+import nl.dtls.fairdatapoint.service.index.harvester.HarvesterService;
 import nl.dtls.fairdatapoint.service.index.webhook.WebhookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
 
 @Tag(name = "Index")
 @Slf4j
@@ -57,7 +58,7 @@ public class IndexPingController {
     private WebhookService webhookService;
 
     @Autowired
-    private IndexEntryService indexEntryService;
+    private HarvesterService harvesterService;
 
     @Autowired
     private UtilityService utilityService;
@@ -100,7 +101,7 @@ public class IndexPingController {
         final Event event = eventService.acceptIncomingPing(reqDto, request);
         log.info("Triggering metadata retrieval for {}", event.getRelatedTo().getClientUrl());
         eventService.triggerMetadataRetrieval(event);
-        indexEntryService.harvest(reqDto.getClientUrl());
+        harvesterService.harvest(reqDto.getClientUrl());
         webhookService.triggerWebhooks(event);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }

@@ -23,7 +23,6 @@
 package nl.dtls.fairdatapoint.api.controller.reset;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import nl.dtls.fairdatapoint.api.dto.reset.ResetDTO;
 import nl.dtls.fairdatapoint.service.reset.ResetService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +33,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import javax.validation.Valid;
 
 @Tag(name = "Client")
 @RestController

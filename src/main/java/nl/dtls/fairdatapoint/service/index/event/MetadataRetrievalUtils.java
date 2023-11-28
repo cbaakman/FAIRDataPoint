@@ -30,7 +30,6 @@ import nl.dtls.fairdatapoint.entity.index.http.Exchange;
 import nl.dtls.fairdatapoint.entity.index.http.ExchangeDirection;
 import nl.dtls.fairdatapoint.entity.index.http.ExchangeState;
 import nl.dtls.fairdatapoint.service.index.entry.IndexEntryService;
-import nl.dtls.fairdatapoint.vocabulary.DCAT3;
 import nl.dtls.fairdatapoint.vocabulary.FDP;
 import nl.dtls.fairdatapoint.vocabulary.R3D;
 import org.eclipse.rdf4j.model.IRI;
@@ -74,7 +73,7 @@ public class MetadataRetrievalUtils {
     private static final Map<IRI, String> MAPPING = Map.of(
             DCTERMS.TITLE, "title",
             DCTERMS.DESCRIPTION, "description",
-            DCAT3.VERSION, "version",
+            DCTERMS.HAS_VERSION, "version",
             DCTERMS.PUBLISHER, "publisher",
             R3D.COUNTRY, "country"
     );

@@ -141,12 +141,10 @@ public abstract class AbstractMetadataService implements MetadataService {
             or hasRole('ADMIN')
             """)
     public Model update(
-            Model metadata, IRI uri, ResourceDefinition resourceDefinition, boolean validate
+            Model metadata, IRI uri, ResourceDefinition resourceDefinition
     ) throws MetadataServiceException {
         try {
-            if (validate) {
-                metadataValidator.validate(metadata, uri, resourceDefinition);
-            }
+            metadataValidator.validate(metadata, uri, resourceDefinition);
             final Model oldMetadata = retrieve(uri);
             metadataEnhancer.enhance(metadata, uri, resourceDefinition, oldMetadata);
             metadataRepository.remove(uri);
@@ -187,7 +185,7 @@ public abstract class AbstractMetadataService implements MetadataService {
                 for (ResourceDefinitionChild rdChild : rdParent.getChildren()) {
                     if (rdChild.getResourceDefinitionUuid().equals(rd.getUuid())) {
                         parentMetadata.remove(null, i(rdChild.getRelationUri()), uri);
-                        update(parentMetadata, parentUri, rdParent, false);
+                        update(parentMetadata, parentUri, rdParent);
                     }
                 }
             }

@@ -283,7 +283,7 @@ public class GenericController {
         }
 
         // 4. Store metadata
-        final Model metadata = metadataService.update(reqDto, uri, rd, true);
+        final Model metadata = metadataService.update(reqDto, uri, rd);
 
         // 5. Invalidate search filters cache
         searchFilterCache.clearCache();
