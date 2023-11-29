@@ -33,6 +33,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 @Service
@@ -48,7 +49,6 @@ public class IndexEntryMapper {
                 toStateDTO(indexEntry.getState(),
                         indexEntry.getLastRetrievalTime(),
                         validThreshold),
-                indexEntry.getPermit(),
                 indexEntry.getRegistrationTime().toString(),
                 indexEntry.getModificationTime().toString()
         );
@@ -63,11 +63,10 @@ public class IndexEntryMapper {
                 toStateDTO(indexEntry.getState(),
                         indexEntry.getLastRetrievalTime(),
                         validThreshold),
-                indexEntry.getPermit(),
                 indexEntry.getCurrentMetadata(),
                 StreamSupport.stream(events.spliterator(), false)
                         .map(eventMapper::toDTO)
-                        .toList(),
+                        .collect(Collectors.toList()),
                 indexEntry.getRegistrationTime().toString(),
                 indexEntry.getModificationTime().toString(),
                 indexEntry.getLastRetrievalTime().toString()

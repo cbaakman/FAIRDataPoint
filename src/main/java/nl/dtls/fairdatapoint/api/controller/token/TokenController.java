@@ -23,7 +23,6 @@
 package nl.dtls.fairdatapoint.api.controller.token;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import nl.dtls.fairdatapoint.api.dto.auth.AuthDTO;
 import nl.dtls.fairdatapoint.api.dto.auth.TokenDTO;
 import nl.dtls.fairdatapoint.service.jwt.JwtService;
@@ -34,6 +33,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
 
 @Tag(name = "Authentication and Authorization")
 @RestController

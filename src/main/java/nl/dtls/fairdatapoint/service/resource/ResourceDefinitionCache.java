@@ -22,7 +22,6 @@
  */
 package nl.dtls.fairdatapoint.service.resource;
 
-import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import nl.dtls.fairdatapoint.database.mongo.repository.ResourceDefinitionRepository;
 import nl.dtls.fairdatapoint.entity.resource.ResourceDefinition;
@@ -31,6 +30,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -100,7 +100,7 @@ public class ResourceDefinitionCache {
     }
 
     @Getter
-    private static final class ResourceDefinitionParents {
+    private static class ResourceDefinitionParents {
         private final Set<ResourceDefinition> parents = new HashSet<>();
 
         public void add(ResourceDefinition rdParent) {

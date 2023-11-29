@@ -29,13 +29,11 @@ import nl.dtls.fairdatapoint.entity.metadata.MetadataState;
 import nl.dtls.fairdatapoint.entity.resource.*;
 import nl.dtls.fairdatapoint.entity.schema.MetadataSchema;
 import nl.dtls.fairdatapoint.entity.schema.MetadataSchemaType;
-import nl.dtls.fairdatapoint.entity.schema.SemVer;
 import nl.dtls.fairdatapoint.entity.user.User;
 import nl.dtls.fairdatapoint.entity.user.UserRole;
 import nl.dtls.fairdatapoint.service.schema.MetadataSchemaShaclUtils;
 import nl.dtls.fairdatapoint.util.KnownUUIDs;
 import nl.dtls.fairdatapoint.vocabulary.DATACITE;
-import nl.dtls.fairdatapoint.vocabulary.DCAT3;
 import nl.dtls.fairdatapoint.vocabulary.FDP;
 import nl.dtls.fairdatapoint.vocabulary.R3D;
 import org.bson.BasicBSONObject;
@@ -47,7 +45,6 @@ import org.eclipse.rdf4j.model.vocabulary.*;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static nl.dtls.fairdatapoint.util.ResourceReader.loadClassResource;
@@ -76,9 +73,6 @@ public class FactoryDefaults {
     public static final String SUFFIX_IDENTIFIER = "#identifier";
     public static final String SUFFIX_ACCESS_RIGHTS = "#accessRights";
     public static final String SUFFIX_PUBLISHER = "#publisher";
-    public static final String FDP_APP_URL = "https://purl.org/fairdatapoint/app";
-
-    public static final SemVer SEMVER_V1 = new SemVer("1.0.0");
 
     // == USERS
     // Changes: Migration_0001_Init
@@ -153,7 +147,12 @@ public class FactoryDefaults {
             .uuid(KnownUUIDs.RD_FDP_UUID)
             .name(FDP_TITLE)
             .urlPrefix(FDP_PREFIX)
-            .metadataSchemaUuids(List.of(KnownUUIDs.SCHEMA_FDP_UUID))
+            .metadataSchemaUuids(List.of(
+                    KnownUUIDs.SCHEMA_RESOURCE_UUID,
+                    KnownUUIDs.SCHEMA_DATASERVICE_UUID,
+                    KnownUUIDs.SCHEMA_METADATASERVICE_UUID,
+                    KnownUUIDs.SCHEMA_FDP_UUID
+            ))
             .children(List.of(
                     ResourceDefinitionChild.builder()
                             .resourceDefinitionUuid(KnownUUIDs.RD_CATALOG_UUID)
@@ -174,7 +173,10 @@ public class FactoryDefaults {
             .uuid(KnownUUIDs.RD_CATALOG_UUID)
             .name(CATALOG_TITLE)
             .urlPrefix(CATALOG_PREFIX)
-            .metadataSchemaUuids(List.of(KnownUUIDs.SCHEMA_CATALOG_UUID))
+            .metadataSchemaUuids(List.of(
+                    KnownUUIDs.SCHEMA_RESOURCE_UUID,
+                    KnownUUIDs.SCHEMA_CATALOG_UUID
+            ))
             .children(List.of(
                     ResourceDefinitionChild.builder()
                             .resourceDefinitionUuid(KnownUUIDs.RD_DATASET_UUID)
@@ -195,7 +197,10 @@ public class FactoryDefaults {
             .uuid(KnownUUIDs.RD_DATASET_UUID)
             .name(DATASET_TITLE)
             .urlPrefix(DATASET_PREFIX)
-            .metadataSchemaUuids(List.of(KnownUUIDs.SCHEMA_DATASET_UUID))
+            .metadataSchemaUuids(List.of(
+                    KnownUUIDs.SCHEMA_RESOURCE_UUID,
+                    KnownUUIDs.SCHEMA_DATASET_UUID
+            ))
             .children(List.of(
                     ResourceDefinitionChild.builder()
                             .resourceDefinitionUuid(KnownUUIDs.RD_DISTRIBUTION_UUID)
@@ -221,7 +226,10 @@ public class FactoryDefaults {
             .uuid(KnownUUIDs.RD_DISTRIBUTION_UUID)
             .name(DISTRIBUTION_TITLE)
             .urlPrefix(DISTRIBUTION_PREFIX)
-            .metadataSchemaUuids(List.of(KnownUUIDs.SCHEMA_DISTRIBUTION_UUID))
+            .metadataSchemaUuids(List.of(
+                    KnownUUIDs.SCHEMA_RESOURCE_UUID,
+                    KnownUUIDs.SCHEMA_DISTRIBUTION_UUID
+            ))
             .children(List.of())
             .externalLinks(List.of(
                     new ResourceDefinitionLink(
@@ -245,14 +253,6 @@ public class FactoryDefaults {
                 .name("Resource")
                 .type(MetadataSchemaType.INTERNAL)
                 .published(false)
-                .latest(true)
-                .version(SEMVER_V1)
-                .versionString(SEMVER_V1.toString())
-                .versionUuid(KnownUUIDs.SCHEMA_V1_RESOURCE_UUID)
-                .previousVersionUuid(null)
-                .origin(FDP_APP_URL)
-                .importedFrom(FDP_APP_URL)
-                .extendSchemas(Collections.emptyList())
                 .abstractSchema(true)
                 .definition(definition)
                 .targetClasses(MetadataSchemaShaclUtils.extractTargetClasses(definition))
@@ -266,14 +266,6 @@ public class FactoryDefaults {
                 .name(FDP_TITLE)
                 .type(MetadataSchemaType.INTERNAL)
                 .published(false)
-                .latest(true)
-                .version(SEMVER_V1)
-                .versionString(SEMVER_V1.toString())
-                .versionUuid(KnownUUIDs.SCHEMA_V1_FDP_UUID)
-                .previousVersionUuid(null)
-                .origin(FDP_APP_URL)
-                .importedFrom(FDP_APP_URL)
-                .extendSchemas(List.of(KnownUUIDs.SCHEMA_METADATASERVICE_UUID))
                 .abstractSchema(false)
                 .definition(definition)
                 .targetClasses(MetadataSchemaShaclUtils.extractTargetClasses(definition))
@@ -289,14 +281,6 @@ public class FactoryDefaults {
                 .name(DATASERVICE_TITLE)
                 .type(MetadataSchemaType.INTERNAL)
                 .published(false)
-                .latest(true)
-                .version(SEMVER_V1)
-                .versionString(SEMVER_V1.toString())
-                .versionUuid(KnownUUIDs.SCHEMA_V1_DATASERVICE_UUID)
-                .previousVersionUuid(null)
-                .origin(FDP_APP_URL)
-                .importedFrom(FDP_APP_URL)
-                .extendSchemas(List.of(KnownUUIDs.SCHEMA_RESOURCE_UUID))
                 .abstractSchema(false)
                 .definition(definition)
                 .targetClasses(MetadataSchemaShaclUtils.extractTargetClasses(definition))
@@ -312,14 +296,6 @@ public class FactoryDefaults {
                 .name(METADATASERVICE_TITLE)
                 .type(MetadataSchemaType.INTERNAL)
                 .published(false)
-                .latest(true)
-                .version(SEMVER_V1)
-                .versionString(SEMVER_V1.toString())
-                .versionUuid(KnownUUIDs.SCHEMA_V1_METADATASERVICE_UUID)
-                .previousVersionUuid(null)
-                .origin(FDP_APP_URL)
-                .importedFrom(FDP_APP_URL)
-                .extendSchemas(List.of(KnownUUIDs.SCHEMA_DATASERVICE_UUID))
                 .abstractSchema(false)
                 .definition(definition)
                 .targetClasses(MetadataSchemaShaclUtils.extractTargetClasses(definition))
@@ -335,14 +311,6 @@ public class FactoryDefaults {
                 .name(CATALOG_TITLE)
                 .type(MetadataSchemaType.INTERNAL)
                 .published(false)
-                .latest(true)
-                .version(SEMVER_V1)
-                .versionString(SEMVER_V1.toString())
-                .versionUuid(KnownUUIDs.SCHEMA_V1_CATALOG_UUID)
-                .previousVersionUuid(null)
-                .origin(FDP_APP_URL)
-                .importedFrom(FDP_APP_URL)
-                .extendSchemas(List.of(KnownUUIDs.SCHEMA_RESOURCE_UUID))
                 .abstractSchema(false)
                 .definition(definition)
                 .targetClasses(MetadataSchemaShaclUtils.extractTargetClasses(definition))
@@ -358,14 +326,6 @@ public class FactoryDefaults {
                 .name(DATASET_TITLE)
                 .type(MetadataSchemaType.CUSTOM)
                 .published(false)
-                .latest(true)
-                .version(SEMVER_V1)
-                .versionString(SEMVER_V1.toString())
-                .versionUuid(KnownUUIDs.SCHEMA_V1_DATASET_UUID)
-                .previousVersionUuid(null)
-                .origin(FDP_APP_URL)
-                .importedFrom(FDP_APP_URL)
-                .extendSchemas(List.of(KnownUUIDs.SCHEMA_RESOURCE_UUID))
                 .abstractSchema(false)
                 .definition(definition)
                 .targetClasses(MetadataSchemaShaclUtils.extractTargetClasses(definition))
@@ -381,14 +341,6 @@ public class FactoryDefaults {
                 .name(DISTRIBUTION_TITLE)
                 .type(MetadataSchemaType.CUSTOM)
                 .published(false)
-                .latest(true)
-                .version(SEMVER_V1)
-                .versionString(SEMVER_V1.toString())
-                .versionUuid(KnownUUIDs.SCHEMA_V1_DISTRIBUTION_UUID)
-                .previousVersionUuid(null)
-                .origin(FDP_APP_URL)
-                .importedFrom(FDP_APP_URL)
-                .extendSchemas(List.of(KnownUUIDs.SCHEMA_RESOURCE_UUID))
                 .abstractSchema(false)
                 .definition(definition)
                 .targetClasses(MetadataSchemaShaclUtils.extractTargetClasses(definition))
@@ -451,7 +403,7 @@ public class FactoryDefaults {
         FactoryDefaults.add(s, RDF.TYPE, i("http://www.w3.org/ns/dcat#Resource"), baseUrl);
         FactoryDefaults.add(s, DCTERMS.TITLE, l(DEFAULT_FDP_TITLE), baseUrl);
         FactoryDefaults.add(s, RDFS.LABEL, l(DEFAULT_FDP_TITLE), baseUrl);
-        FactoryDefaults.add(s, DCAT3.VERSION, l(1.0f), baseUrl);
+        FactoryDefaults.add(s, DCTERMS.HAS_VERSION, l(1.0f), baseUrl);
         FactoryDefaults.add(s, FDP.METADATAISSUED, l(OffsetDateTime.now()), baseUrl);
         FactoryDefaults.add(s, FDP.METADATAMODIFIED, l(OffsetDateTime.now()), baseUrl);
         FactoryDefaults.add(s, DCTERMS.LICENSE, license, baseUrl);
@@ -489,7 +441,7 @@ public class FactoryDefaults {
         FactoryDefaults.add(s, RDF.TYPE, DCAT.RESOURCE, baseUrl);
         FactoryDefaults.add(s, DCTERMS.TITLE, l(DEFAULT_FDP_TITLE), baseUrl);
         FactoryDefaults.add(s, RDFS.LABEL, l(DEFAULT_FDP_TITLE), baseUrl);
-        FactoryDefaults.add(s, DCAT3.VERSION, l(1.0f), baseUrl);
+        FactoryDefaults.add(s, DCTERMS.HAS_VERSION, l(1.0f), baseUrl);
         FactoryDefaults.add(s, FDP.METADATAISSUED, l(OffsetDateTime.now()), baseUrl);
         FactoryDefaults.add(s, FDP.METADATAMODIFIED, l(OffsetDateTime.now()), baseUrl);
         FactoryDefaults.add(s, DCTERMS.LICENSE, license, baseUrl);

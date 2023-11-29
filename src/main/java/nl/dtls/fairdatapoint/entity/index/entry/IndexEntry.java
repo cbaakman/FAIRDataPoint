@@ -37,7 +37,6 @@ import java.time.Instant;
 @Getter
 @Setter
 @EqualsAndHashCode
-@Builder
 public class IndexEntry {
 
     @Id
@@ -49,8 +48,6 @@ public class IndexEntry {
 
     private IndexEntryState state = IndexEntryState.Unknown;
 
-    private IndexEntryPermit permit = IndexEntryPermit.PENDING;
-
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private Instant registrationTime;
 
@@ -61,6 +58,17 @@ public class IndexEntry {
     private Instant lastRetrievalTime;
 
     private RepositoryMetadata currentMetadata;
+
+    public IndexEntry(String uuid, String clientUrl, IndexEntryState state, Instant registrationTime,
+                      Instant modificationTime, Instant lastRetrievalTime, RepositoryMetadata currentMetadata) {
+        this.uuid = uuid;
+        this.clientUrl = clientUrl;
+        this.state = state;
+        this.registrationTime = registrationTime;
+        this.modificationTime = modificationTime;
+        this.lastRetrievalTime = lastRetrievalTime;
+        this.currentMetadata = currentMetadata;
+    }
 
     public Duration getLastRetrievalAgo() {
         if (lastRetrievalTime == null) {

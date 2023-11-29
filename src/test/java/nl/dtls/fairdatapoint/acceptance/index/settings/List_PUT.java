@@ -80,7 +80,6 @@ public class List_PUT extends WebIntegrationTest {
                                 .timeout(Duration.ofSeconds(55))
                                 .build()
                 )
-                .autoPermit(true)
                 .build();
     }
 
@@ -104,7 +103,6 @@ public class List_PUT extends WebIntegrationTest {
         retrievalDTO.setRateLimitWait(customSettings.getRetrieval().getRateLimitWait().toString());
         retrievalDTO.setTimeout(customSettings.getRetrieval().getTimeout().toString());
         dto.setRetrieval(retrievalDTO);
-        dto.setAutoPermit(true);
         return dto;
     }
 

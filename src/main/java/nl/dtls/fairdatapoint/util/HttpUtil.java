@@ -22,13 +22,13 @@
  */
 package nl.dtls.fairdatapoint.util;
 
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import nl.dtls.fairdatapoint.entity.exception.ValidationException;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.springframework.http.HttpHeaders;
 
+import javax.servlet.http.HttpServletRequest;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.UUID;
@@ -72,7 +72,7 @@ public class HttpUtil {
         if (behindProxy) {
             for (String header : IP_HEADER_CANDIDATES) {
                 final String ipList = request.getHeader(header);
-                if (ipList != null && !ipList.isEmpty() && !"unknown".equalsIgnoreCase(ipList)) {
+                if (ipList != null && ipList.length() != 0 && !"unknown".equalsIgnoreCase(ipList)) {
                     return ipList.split(",")[0];
                 }
             }

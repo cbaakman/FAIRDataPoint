@@ -22,11 +22,12 @@
  */
 package nl.dtls.fairdatapoint.api.dto.index.settings;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import javax.validation.constraints.NotNull;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -38,9 +39,6 @@ public class IndexSettingsDTO {
 
     @NotNull
     private IndexSettingsPingDTO ping;
-
-    @NotNull
-    private Boolean autoPermit;
 
     @NotNull
     private Boolean isDefault;
