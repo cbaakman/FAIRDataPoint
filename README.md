@@ -99,6 +99,18 @@ https://fairdatapoint.readthedocs.io/
 Keep in mind that your docker image is named `fairdatapoint:local` in this case.
 
 
+### Configuring the Ontology Extended Search Engine
+
+To your application.yml, add an additional section
+
+```
+search:
+    ontologyUrls:
+        - <url to owl file, to be indexed>
+    associationRelevanceThreshold: <a decimal number, the higher, the shallower the search>
+```
+
+
 ## Security
 
 Most of the `GET` requests are publicly accessible. In contrast, `POST`, `PUT`, `DELETE`, and `PATCH` requests are
