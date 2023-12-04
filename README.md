@@ -91,6 +91,14 @@ built `jar` file):
 $ docker build -f Dockerfile.build -t fairdatapoint:local .
 ```
 
+### Deploying the Docker Image
+
+Once you've built a docker image, follow the instructions on:
+https://fairdatapoint.readthedocs.io/
+
+Keep in mind that your docker image is named `fairdatapoint:local` in this case.
+
+
 ## Security
 
 Most of the `GET` requests are publicly accessible. In contrast, `POST`, `PUT`, `DELETE`, and `PATCH` requests are
