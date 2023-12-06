@@ -25,6 +25,9 @@ package nl.dtls.fairdatapoint.database.ontology;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
@@ -46,7 +49,14 @@ public class OntologySearcherTest extends BaseIntegrationTest {
 	OntologySearcher searcher;
 	
 	@BeforeAll
-	public void setup() {
+	public void setup() throws MalformedURLException {
+		
+		List<URL> urls = new ArrayList<URL>();
+		urls.add(new URL("https://evs.nci.nih.gov/ftp1/NCI_Thesaurus/Thesaurus_23.09d.OWL.zip"));
+		searcher.setOntologyUrls(urls);
+		
+		searcher.setRelevanceThreshold(0.0);
+		
 		searcher.indexAllOntologies();
 	}
 	
