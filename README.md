@@ -110,6 +110,10 @@ search:
     associationRelevanceThreshold: <a decimal number, the higher, the shallower the search>
 ```
 
+## System Requirements
+
+At startup, when parsing a new ontology, the amount of memory needed can grow quickly.
+For example: Thesaurus.owl has a 12 GB RAM peak. Keep this in mind when running this server.
 
 ## Security
 
