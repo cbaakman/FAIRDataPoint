@@ -6,6 +6,9 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/fairdata/fairdatapoint)](https://hub.docker.com/r/fairdata/fairdatapoint)
 [![Libraries.io](https://img.shields.io/librariesio/github/FAIRDataTeam/FAIRDataPoint)](https://libraries.io/github/FAIRDataTeam/FAIRDataPoint)
 
+## This is an enhanced FAIR Data Point, specifically the search capability is enhanced by expanding the search keywords with associations terms extracted froma an ontology. Also a ranking algorithm is applied to the rank the result list.
+## This work is supported by a SURF-DCC pilot, [Enhancing FAIR Data Point's Search Capability as a FAIR Service](https://www.surf.nl/en/news/surf-honors-7-proposals-in-the-3rd-call-for-proposals-for-digital-competence-centers).
+
 [**FAIR Data Point** (FDP)](https://www.fairdatapoint.org) is a REST API for creating, storing, and serving **FAIR
 metadata**. This FDP implementation also presents a Web-based graphical user interface (GUI). The metadata contents are
 generated **semi-automatically** according to
