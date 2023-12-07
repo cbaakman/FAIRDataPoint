@@ -83,3 +83,4 @@ server:
 
 search:
   associationRelevanceThreshold: 2.7
+  cachePath: /data/cache
