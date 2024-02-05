@@ -103,6 +103,13 @@ public class SearchService {
         return processSearchResults(results);
     }
 
+    /**
+     * Count how often a given word occurs in a searchresult's document.
+     * 
+     * @param result the search result, corresponding to a metadata document
+     * @param searchWord the word to search for
+     * @return the number of occurrences of the word
+     */
     private int countWordOccurenceIn(SearchResult result, String searchWord) {
     	int count = 0;
     	for (String word : ontologySearcher.getKeywordsFromString(result.getTitle() + result.getDescription())) {
@@ -113,10 +120,22 @@ public class SearchService {
     	return count;
 	}
 
+    /**
+     * Count the number of words in the given search result's document.
+     * 
+     * @param result the search result, corresponding to a metadata document
+     * @return the number of words in the document
+     */
 	private int countWordsIn(SearchResult result) {
     	return ontologySearcher.getKeywordsFromString(result.getTitle() + result.getDescription()).size();
 	}
 	
+	/**
+	 * Sort all search results by their score. highest score goes first.
+	 * 
+	 * @param results the list of results to sort
+	 * @param resultScores the scores to sort by
+	 */
 	private void sortSearchResultsByScores(List<SearchResult> results, final Map<SearchResult, Double> resultScores) {
 
     	Collections.sort(results, new Comparator<SearchResult>() {
@@ -136,7 +155,11 @@ public class SearchService {
 	private double associationRelevanceThreshold;
 	
 	/**
-	 * Increasing the relevance threshold will lead to a faster search, but with less search words, thus less hits.
+	 * Find words associated with the keywords in the query.
+	 * Increasing the relevance threshold setting will lead to a faster search, but with less search words, thus less hits.
+	 * 
+	 * @param query a string holding keywords to search
+	 * @return all the words associated with the query
 	 */
 	private Set<String> findAssociatedWords(String query)
 	{
@@ -151,6 +174,14 @@ public class SearchService {
     	return words;
 	}
 	
+	/**
+	 * Search for the given set of words through the metadata documents and at the same time, score
+	 * each result by TF-IDF.
+	 * 
+	 * @param words the input words, each will be search for independently
+	 * @return the resuling metadata documents, with associated TF-IDF scores
+	 * @throws MetadataRepositoryException, if there are problems retrieving metadata from the repository.
+	 */
 	public Map<SearchResult, Double> searchScoreTfidf(Set<String> words) throws MetadataRepositoryException {
 
     	// Count the total amount of documents in the triple store.
@@ -166,6 +197,8 @@ public class SearchService {
     		List<SearchResult> results = metadataRepository.findByLiteral(l(word));
     		if (results.size() == 0)
     			continue;
+
+            log.info("{} results for word \"{}\"", results.size(), word);
     		
     		// Calculate the inverse document frequency for the word.
     		double idf = Math.log(((double)total) / results.size());
@@ -183,6 +216,8 @@ public class SearchService {
     			if (resultScores.containsKey(result))
 					score += resultScores.get(result);
     			
+                log.info("{} gets score {}", result.getTitle(), score);
+
 				resultScores.put(result, score);
     		}
     	}
@@ -190,6 +225,14 @@ public class SearchService {
     	return resultScores;
 	}
 
+	/**
+	 * This is an extended search functionality. It uses ontology files that have been indexed and stored beforehand.
+	 * if a query's keyword matches with a term in the ontology, then other terms from this ontology are added.
+	 * 
+	 * @param reqDto the search request
+	 * @return the search result response
+	 * @throws MetadataRepositoryException, if there are problems retrieving metadata
+	 */
     public List<SearchResultDTO> searchAssociations(SearchQueryDTO reqDto) throws MetadataRepositoryException {
     	    	
     	// Expand the number of words to search for, using the web ontologies.

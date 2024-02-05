@@ -67,12 +67,43 @@ import nl.dtls.fairdatapoint.entity.ontology.TermAssociation;
 @Slf4j
 public class OntologySearcher {
 	
+	/**
+	 * Path to the directory where downloaded files are cached.
+	 */
 	private String cachePath;
+	
+	/**
+	 * Whether or not to filter strings for punctuation characters. Like: . , { : etc.
+	 */
 	private boolean filterPunctuation = true;
+	
+	/**
+	 * A list of words that should be ignored by the indexing.
+	 */
 	private List<String> stopWords = getStopWords();
+	
+	/**
+	 * The list of urls that should be indexed.
+	 */
 	private List<URL> ontologyURLs = new ArrayList<URL>();
 	
+
+	
+	/**
+	 * A threshold value to determine which associations are relevant.
+	 * Each association has a relevance value, that is precalculated for it.
+	 * Associations which have their relevance below this setting will not be used to compute a result.
+	 */
+	private double relevanceThreshold;
+	
+	/**
+	 * ontology manager, needed to index owl files.
+	 */
 	static private OWLOntologyManager ontologyManager = OWLManager.createOWLOntologyManager();
+
+	/**
+	 * ontology data factory, needed to index owl files.
+	 */
 	static private OWLDataFactory dataFactory = OWLManager.getOWLDataFactory();
 
 	@Autowired
@@ -83,28 +114,66 @@ public class OntologySearcher {
 		
 		indexAllOntologies();
 	}
+
+	/**
+	 * Setter for the relevance threshold.
+	 * @param value the new value for the relevance threshold.
+	 */
+	public void setRelevanceThreshold(double value) {
+		this.relevanceThreshold = value;
+	}
 	
+	/**
+	 * Tells whether a given ontology web language (OWL) file URL was already indexed by this class.
+	 * 
+	 * @param url, the url to the OWL file
+	 * @return the answer it was already indexed or not
+	 */
 	private boolean alreadyIndexed(URL url) {
 		
 		return (associationRepository.findByUrl(url).size() > 0);
 	}
 
+	/**
+	 * A setter for the cache path.
+	 * 
+	 * @param path, the path to the new cache directory
+	 */
 	public void setCachePath(String path) {
 		cachePath = path;
 	}
 
+	/**
+	 * A setter for the ontology url list.
+	 * 
+	 * @param ontologyUrls, the new list of ontology urls
+	 */
 	public void setOntologyUrls(List<URL> ontologyUrls) {
 		
 		this.ontologyURLs = ontologyUrls;
 	}
 	
-	private File getCacheFilename(URL url) throws IOException {
+	/**
+	 * Get the full file path of the given file url, when it gets stored in the cache directory.
+	 * 
+	 * @param url to the file to store
+	 * @return the full file path of the file in cache
+	 */
+	private File getCacheFilename(URL url) {
 		
 		File cached = new File(cachePath, new File(url.getFile()).getName());
 		
 		return cached;
 	}
 	
+	/**
+	 * Downloads the given file and stores it in cache.
+	 * 
+	 * @param url to the file to fetch
+	 * @return the cached owl file
+	 * @throws IOException, when there's a problem downloading the file
+	 * @throws IOException, when there's a problem storing the file
+	 */
 	private File fetchOwl(URL url) throws IOException {
 		
 		// Download the owl file.
@@ -118,12 +187,23 @@ public class OntologySearcher {
 		
 		return cached;
 	}
-		
+
+	/**
+	 * 	This method parses an ontology web language (OWL) file.
+	 *  WARNING: It can put a strain on the memory, depending on the size of the input file.
+	 *
+	 * @param file the input OWL formatted file.
+	 * @return the resulting ontology object from the file
+	 * @throws OWLOntologyCreationException, if the document is not well formed
+	 * @throws IOException, if the input file cannot be accessed
+	 **/
 	private static OWLOntology parseOwl(File file) throws OWLOntologyCreationException, IOException {
+
 		
 		OWLOntology ontology;
 		InputStream input = new FileInputStream(file.toString());
 		
+		// Sometimes, OWL files are zipped.
 		if (file.getName().endsWith(".zip")) {
 		
 			ZipInputStream zipInput = new ZipInputStream(input);
@@ -143,7 +223,8 @@ public class OntologySearcher {
 	}
 	
 	/**
-	 * Undoes the word of indexAllOntologies.
+	 * Undoes all the work of indexAllOntologies.
+	 * clears the database.
 	 */
 	public void clearAllIndexes() {
 		
@@ -159,6 +240,7 @@ public class OntologySearcher {
 		
 		for (URL url : this.ontologyURLs) {
 
+			// Don't index the same ontology at every reboot.
 			if (alreadyIndexed(url))
 				continue;
 			
@@ -180,6 +262,12 @@ public class OntologySearcher {
 		}
 	}
 
+	/**
+	 * Counts the number of times that each term occurs in the given list.
+	 * 
+	 * @param terms the input list of encountered terms
+	 * @return a map, holding the number of occurences per term
+	 */
 	private Map<String, Integer> countTerms(List<String> terms) {
 
 		// Fill a map, containing the count of each string within the input list.
@@ -194,6 +282,14 @@ public class OntologySearcher {
 		return termCount;
 	}
 	
+	/**
+	 * Indexes all the classes in one ontology's signature.
+	 * For every class, get the terms in the description, count the occurrences,
+	 * associate terms that occur together in one class and store in the database.
+	 * 
+	 * @param ontology the ontology to index
+	 * @param url that the ontology came from, this will be stored with all associated data
+	 */
 	private void indexOntology(OWLOntology ontology, URL url) {
 		
 		// Count the frequency of the terms everywhere.
@@ -230,6 +326,7 @@ public class OntologySearcher {
 						   
 						   relevance = tf1 * idf1 * tf2 * idf2;
 					
+					// store in object
 					TermAssociation association = new TermAssociation();
 					association.setKey(term1);
 					association.setValue(term2);
@@ -246,6 +343,15 @@ public class OntologySearcher {
 		associationRepository.insert(associations);
 	}
 	
+	/**
+	 * Get all the terms from the class.
+	 * 1. Get the RDFS label of the class.
+	 * 2. Return all the keywords in this label as terms.
+	 * 
+	 * @param ontology the ontology that the class is in
+	 * @param cls the class to take the terms from
+	 * @return a list of all the terms in the class, it may included the same term twice.
+	 */
 	private List<String> getTermsInClass(OWLOntology ontology, OWLClass cls) {
 		
 		// Retrieve the RDFS labels from the classes:
@@ -256,9 +362,11 @@ public class OntologySearcher {
 		List<String> terms = new ArrayList<String>();
 		for (OWLAnnotation annotation : annotations) {
 				
+			// get the label's value as a literal
 			Optional<OWLLiteral> optionalLiteral = annotation.getValue().asLiteral();
 			if (optionalLiteral.isPresent()) {
 				
+				// get string from literal
 				Optional<String> optionalText = getStringFromLiteral(optionalLiteral.get());
 				if (optionalText.isPresent()) {
 					
@@ -276,6 +384,12 @@ public class OntologySearcher {
 	
 	static final Pattern literalStringPattern = Pattern.compile("^\\\"(.*)\\\"\\^\\^xsd:string$", Pattern.CASE_INSENSITIVE);
 	
+	/**
+	 * Find out whether a literal is a string and return the string if so.
+	 * 
+	 * @param literal the literal to test on and get the string from
+	 * @return the resulting string, or nothing if it wasn't a string
+	 */
 	private static Optional<String> getStringFromLiteral(OWLLiteral literal) {
 		
 		Matcher matcher = literalStringPattern.matcher(literal.toString());
@@ -292,15 +406,19 @@ public class OntologySearcher {
 
 	/**
 	 * Breaks a string apart into separate keywords, skipping punctuation and stop words.
+	 * 
+	 * @return the list of resulting stop words
 	 */
 	public List<String> getKeywordsFromString(String input) {
 		
 		List<String> result = new ArrayList<String>();
 		for (String word : input.toLowerCase().split(" ")) {
 			
+			// remove punctuation, if that's the setting
 			if (filterPunctuation)
 				word = wordWithoutPunctuation(word);
 			
+			// remove stopwords, according to settings
 			if (!stopWords.contains(word) && word.length() > 3)
 				result.add(word);
 		}
@@ -308,9 +426,16 @@ public class OntologySearcher {
 		return result;
 	}
 
+	/**
+	 * Removes punctuation characters from the string and return it.
+	 * Every non-alphanumeric character is considered punctuation.
+	 * 
+	 * @param s input string
+	 * @return the input string without punctuation characters.
+	 */
 	private static String wordWithoutPunctuation(String s) {
 		
-		// Return ths input string, but without punctuation characters.
+		// Return this input string, but without punctuation characters.
 		String r = "";
 		for (Character c : s.toCharArray()) 
 		{
@@ -322,11 +447,15 @@ public class OntologySearcher {
 		return r;
 	}
 
+	/**
+	 * Get a list of stop words from a config file.
+	 * 
+	 * @return all the stop words in a list.
+	 */
 	private List<String> getStopWords() {
 		
 		// Get the english stop words from the config file.
 		InputStream input = OntologySearcher.class.getResourceAsStream("english-stopwords.txt");
-		
 		BufferedReader reader = new BufferedReader(new InputStreamReader(input));
 		
 		List<String> lines = new ArrayList<String>();
@@ -342,27 +471,35 @@ public class OntologySearcher {
 			throw new RuntimeException("Cannot read from english-stopwords.txt: " + e);
 		}
 
+		// each line has one word
 		return lines;
 	}
 	
-	private double relevanceThreshold;
-	
-	public void setRelevanceThreshold(double value) {
-		this.relevanceThreshold = value;
-	}
-	
+	/**
+	 * Look up all the stored associations for a given input string.
+	 * This method will get all the keywords in the string and then retrieve all associations with it.
+	 * Associations that lie under the relevance threshold setting will be skipped.
+	 * 
+	 * @param input the input string with keywords
+	 * @return all associations that are relevant enough.
+	 */
 	public List<TermAssociation> getAssociations(String input) {
+
+        log.info("getting associations for '{}'", input);
 		
 		// Get associations from mongo, that have words from 'input' as key.
 		List<TermAssociation> associations = new ArrayList<TermAssociation>();
 		
 		for (TermAssociation a : associationRepository.findByKeysAndUrls(getKeywordsFromString(input), this.ontologyURLs)) {
 			
+            log.info("comparing '{}' association '{}' with relevance {} to {}",
+                     a.getKey(), a.getValue(), a.getRelevance(), this.relevanceThreshold);
+
 			if (a.getRelevance() > this.relevanceThreshold)
 				associations.add(a);
 		}
 		
-		log.debug("found {} associations for \"{}\"", associations.size(), input);
+		log.info("found {} associations for \"{}\"", associations.size(), input);
 		
 		return associations;
 	}
