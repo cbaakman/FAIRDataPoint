@@ -165,7 +165,7 @@ public class SearchService {
 	{
     	List<TermAssociation> associations = ontologySearcher.getAssociations(query);
 
-    	Set<String> words = new HashSet<String>();
+    	Set<String> words = new HashSet<String>(ontologySearcher.getKeywordsFromString(query));
     	for (TermAssociation association : associations) {
     		
     		words.add(association.getValue());
